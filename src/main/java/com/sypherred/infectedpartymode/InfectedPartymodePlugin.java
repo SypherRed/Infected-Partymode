@@ -10,6 +10,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
+import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 
 
 @PluginDescriptor(
@@ -28,6 +29,9 @@ public class InfectedPartymodePlugin extends Plugin
 
 	@Inject
 	private AreaManager areaManager;
+
+	@Inject
+	private OutOfBoundsManager outOfBoundsManager;
 
 	@Inject
 	private InfectedPartymodeConfig config;
