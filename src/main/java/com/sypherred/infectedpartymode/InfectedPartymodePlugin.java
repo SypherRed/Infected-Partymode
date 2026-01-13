@@ -9,6 +9,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
 import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.area.AreaManager;
 
 
 @PluginDescriptor(
@@ -24,6 +25,9 @@ public class InfectedPartymodePlugin extends Plugin
 
 	@Inject
 	private PartySyncManager partySyncManager;
+
+	@Inject
+	private AreaManager areaManager;
 
 	@Inject
 	private InfectedPartymodeConfig config;
