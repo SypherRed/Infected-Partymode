@@ -13,6 +13,7 @@ import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
+import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 
 @PluginDescriptor(
 		name = "Infected Partymode",
@@ -43,6 +44,9 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private ArenaBorderOverlay arenaBorderOverlay;
 
+	@Inject
+	private GameInfoOverlay gameInfoOverlay;
+
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
@@ -53,12 +57,14 @@ public class InfectedPartymodePlugin extends Plugin
 	protected void startUp()
 	{
 		overlayManager.add(arenaBorderOverlay);
+		overlayManager.add(gameInfoOverlay);
 	}
 
 	@Override
 	protected void shutDown()
 	{
 		overlayManager.remove(arenaBorderOverlay);
+		overlayManager.remove(gameInfoOverlay);
 	}
 
 }

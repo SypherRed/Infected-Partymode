@@ -4,6 +4,7 @@ import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
 import com.sypherred.infectedpartymode.area.ChunkArea;
 import com.sypherred.infectedpartymode.area.AreaManager;
+import com.sypherred.infectedpartymode.model.GameSession;
 
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.party.PartyService;
@@ -16,6 +17,7 @@ public class PartySyncManager
 {
     private final PartyService partyService;
     private final AreaManager areaManager;
+    private final GameSession gameSession = new GameSession();
 
     private final Map<String, PlayerState> playerStates = new HashMap<>();
 
@@ -81,6 +83,14 @@ public class PartySyncManager
         areaManager.setActiveArea(area);
     }
 
+    public void sendGameStart(int durationSeconds)
+    {
+        long start = System.currentTimeMillis();
+
+        partyService.send(new TimerSyncMessage(start, durationSeconds));
+        gameSession.start(start, durationSeconds);
+    }
+
     @Subscribe
     public void onAreaSyncMessage(AreaSyncMessage msg)
     {
@@ -93,4 +103,16 @@ public class PartySyncManager
 
         areaManager.setActiveArea(area);
     }
+
+    @Subscribe
+    public void onTimerSyncMessage(TimerSyncMessage msg)
+    {
+        gameSession.start(msg.getStartTimeMillis(), msg.getDurationSeconds());
+    }
+
+    public GameSession getGameSession()
+    {
+        return gameSession;
+    }
+
 }
