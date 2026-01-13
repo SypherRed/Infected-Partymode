@@ -61,6 +61,11 @@ public class AreaManager
         return activeArea;
     }
 
+    public void setActiveArea(ChunkArea area)
+    {
+        this.activeArea = area;
+    }
+
     public void clearArea()
     {
         activeArea = null;
