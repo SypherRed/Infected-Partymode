@@ -6,9 +6,14 @@ import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -23,6 +28,9 @@ import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
+import com.sypherred.infectedpartymode.game.GameState;
+import com.sypherred.infectedpartymode.game.GameTimer;
+
 
 
 @PluginDescriptor(
@@ -64,6 +72,9 @@ public class InfectedPartymodePlugin extends Plugin
 	private InfectionManager infectionManager;
 
 	@Inject
+	private ScheduledExecutorService executor;
+
+	@Inject
 	private ClientToolbar clientToolbar;
 
 	@Inject
@@ -71,15 +82,23 @@ public class InfectedPartymodePlugin extends Plugin
 
 	private NavigationButton navButton;
 
+	private GameState gameState = GameState.IDLE;
+	private GameTimer gameTimer;
+
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(InfectedPartymodeConfig.class);
 	}
 
+	private static final Logger log =
+			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
+
 	@Override
 	protected void startUp()
 	{
+		gameTimer = new GameTimer(executor);
+
 		overlayManager.add(arenaBorderOverlay);
 		overlayManager.add(gameInfoOverlay);
 
@@ -108,6 +127,7 @@ public class InfectedPartymodePlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		stopGame();
 		overlayManager.remove(arenaBorderOverlay);
 		overlayManager.remove(gameInfoOverlay);
 
@@ -116,6 +136,58 @@ public class InfectedPartymodePlugin extends Plugin
 			clientToolbar.removeNavigation(navButton);
 			navButton = null;
 		}
+	}
+
+	public void startGame(int durationSeconds)
+	{
+		if (gameState == GameState.RUNNING)
+		{
+			return;
+		}
+
+		gameState = GameState.RUNNING;
+
+		gameTimer.start(durationSeconds);
+
+		areaManager.generateRandomArea(2);
+
+	}
+
+	public void stopGame()
+	{
+		if (gameState == GameState.IDLE)
+		{
+			return;
+		}
+
+		gameState = GameState.IDLE;
+
+		gameTimer.stop();
+		areaManager.clearArea();
+	}
+
+	@Subscribe
+	public void onGameTick(net.runelite.api.events.GameTick tick)
+	{
+		if (gameState != GameState.RUNNING)
+		{
+			return;
+		}
+
+		if (gameTimer.getRemainingSeconds() <= 0)
+		{
+			stopGame();
+		}
+	}
+
+	public boolean isGameRunning()
+	{
+		return gameState == GameState.RUNNING;
+	}
+
+	public int getRemainingSeconds()
+	{
+		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
 	}
 
 }

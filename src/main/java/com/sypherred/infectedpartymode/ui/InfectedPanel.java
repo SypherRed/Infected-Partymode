@@ -1,8 +1,7 @@
 package com.sypherred.infectedpartymode.ui;
 
+import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
-import com.sypherred.infectedpartymode.area.AreaManager;
-import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
 
 import net.runelite.client.ui.PluginPanel;
@@ -10,25 +9,27 @@ import net.runelite.client.ui.PluginPanel;
 import javax.inject.Inject;
 import javax.swing.*;
 import java.awt.*;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class InfectedPanel extends PluginPanel
 {
+    private static final Logger log = LoggerFactory.getLogger(InfectedPanel.class);
+
+    private final InfectedPartymodePlugin plugin;
     private final PartySyncManager partySyncManager;
-    private final AreaManager areaManager;
 
     private final JPanel playerListPanel = new JPanel();
 
-    private static final Logger log = LoggerFactory.getLogger(InfectedPanel.class);
-
     @Inject
-    public InfectedPanel(PartySyncManager partySyncManager, AreaManager areaManager)
+    public InfectedPanel(
+            InfectedPartymodePlugin plugin,
+            PartySyncManager partySyncManager
+    )
     {
+        this.plugin = plugin;
         this.partySyncManager = partySyncManager;
-        this.areaManager = areaManager;
 
         setLayout(new BorderLayout());
 
@@ -40,22 +41,22 @@ public class InfectedPanel extends PluginPanel
     {
         JPanel panel = new JPanel(new GridLayout(0, 1, 5, 5));
 
-        JButton generateArea = new JButton("Generate Arena");
-        generateArea.addActionListener(e ->
-        {
-            log.info("Generate Arena button clicked");
-            areaManager.generateRandomArea(2);
-        });
-
         JButton startGame = new JButton("Start Game (10 min)");
         startGame.addActionListener(e ->
         {
             log.info("Start Game button clicked");
-            partySyncManager.sendGameStart(600);
+            plugin.startGame(600);
         });
 
-        panel.add(generateArea);
+        JButton stopGame = new JButton("Stop Game");
+        stopGame.addActionListener(e ->
+        {
+            log.info("Stop Game button clicked");
+            plugin.stopGame();
+        });
+
         panel.add(startGame);
+        panel.add(stopGame);
 
         return panel;
     }
@@ -64,7 +65,6 @@ public class InfectedPanel extends PluginPanel
     {
         playerListPanel.setLayout(new BoxLayout(playerListPanel, BoxLayout.Y_AXIS));
         refreshPlayerList();
-
         return new JScrollPane(playerListPanel);
     }
 
