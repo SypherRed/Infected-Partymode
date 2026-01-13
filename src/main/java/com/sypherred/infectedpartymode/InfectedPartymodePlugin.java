@@ -7,11 +7,12 @@ import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
 
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
-
+import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
 
 @PluginDescriptor(
 		name = "Infected Partymode",
@@ -36,6 +37,12 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private InfectedPartymodeConfig config;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ArenaBorderOverlay arenaBorderOverlay;
+
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
@@ -45,13 +52,13 @@ public class InfectedPartymodePlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		// PartySyncManager wird automatisch registriert (EventBus)
+		overlayManager.add(arenaBorderOverlay);
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		// später: State reset
+		overlayManager.remove(arenaBorderOverlay);
 	}
 
 }
