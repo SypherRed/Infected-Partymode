@@ -14,6 +14,8 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
+import com.sypherred.infectedpartymode.rules.InfectionManager;
+
 
 @PluginDescriptor(
 		name = "Infected Partymode",
@@ -46,6 +48,9 @@ public class InfectedPartymodePlugin extends Plugin
 
 	@Inject
 	private GameInfoOverlay gameInfoOverlay;
+
+	@Inject
+	private InfectionManager infectionManager;
 
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
