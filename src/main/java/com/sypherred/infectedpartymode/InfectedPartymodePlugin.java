@@ -9,6 +9,7 @@ import java.io.IOException;
 
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -34,6 +35,9 @@ public class InfectedPartymodePlugin extends Plugin
 {
 	@Inject
 	private Client client;
+
+	@Inject
+	private PartyService partyService;
 
 	@Inject
 	private PartySyncManager partySyncManager;

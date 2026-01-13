@@ -12,12 +12,17 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class InfectedPanel extends PluginPanel
 {
     private final PartySyncManager partySyncManager;
     private final AreaManager areaManager;
 
     private final JPanel playerListPanel = new JPanel();
+
+    private static final Logger log = LoggerFactory.getLogger(InfectedPanel.class);
 
     @Inject
     public InfectedPanel(PartySyncManager partySyncManager, AreaManager areaManager)
@@ -37,13 +42,17 @@ public class InfectedPanel extends PluginPanel
 
         JButton generateArea = new JButton("Generate Arena");
         generateArea.addActionListener(e ->
-                areaManager.generateRandomArea(2)
-        );
+        {
+            log.info("Generate Arena button clicked");
+            areaManager.generateRandomArea(2);
+        });
 
         JButton startGame = new JButton("Start Game (10 min)");
         startGame.addActionListener(e ->
-                partySyncManager.sendGameStart(600)
-        );
+        {
+            log.info("Start Game button clicked");
+            partySyncManager.sendGameStart(600);
+        });
 
         panel.add(generateArea);
         panel.add(startGame);
