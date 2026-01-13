@@ -8,6 +8,9 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
+import com.sypherred.infectedpartymode.party.PartySyncManager;
+
+
 @PluginDescriptor(
 		name = "Infected Partymode",
 		description = "Party-based Infected / ManHunt game mode",
@@ -18,6 +21,9 @@ public class InfectedPartymodePlugin extends Plugin
 {
 	@Inject
 	private Client client;
+
+	@Inject
+	private PartySyncManager partySyncManager;
 
 	@Inject
 	private InfectedPartymodeConfig config;
@@ -31,12 +37,13 @@ public class InfectedPartymodePlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		// PHASE 0: no logic yet
+		// PartySyncManager wird automatisch registriert (EventBus)
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		// PHASE 0: nothing to clean up yet
+		// später: State reset
 	}
+
 }
