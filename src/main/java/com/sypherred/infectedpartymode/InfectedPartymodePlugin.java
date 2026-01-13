@@ -2,12 +2,18 @@ package com.sypherred.infectedpartymode;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
+import javax.swing.*;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.ClientToolbar;
 
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
@@ -15,6 +21,7 @@ import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
+import com.sypherred.infectedpartymode.ui.InfectedPanel;
 
 
 @PluginDescriptor(
@@ -52,6 +59,14 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private InfectionManager infectionManager;
 
+	@Inject
+	private ClientToolbar clientToolbar;
+
+	@Inject
+	private InfectedPanel infectedPanel;
+
+	private NavigationButton navButton;
+
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
@@ -63,6 +78,27 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		overlayManager.add(arenaBorderOverlay);
 		overlayManager.add(gameInfoOverlay);
+
+		BufferedImage icon = null;
+
+		try
+		{
+			icon = ImageIO.read(
+					getClass().getResourceAsStream("/infected_icon.png")
+			);
+		}
+		catch (IOException | IllegalArgumentException e)
+		{
+			// Icon couldn't be loaded - Plugin functional
+		}
+
+		navButton = NavigationButton.builder()
+				.tooltip("Infected Partymode")
+				.icon(icon)
+				.panel(infectedPanel)
+				.build();
+
+		clientToolbar.addNavigation(navButton);
 	}
 
 	@Override
@@ -70,6 +106,12 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		overlayManager.remove(arenaBorderOverlay);
 		overlayManager.remove(gameInfoOverlay);
+
+		if (navButton != null)
+		{
+			clientToolbar.removeNavigation(navButton);
+			navButton = null;
+		}
 	}
 
 }
