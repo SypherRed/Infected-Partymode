@@ -25,7 +25,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
-import com.sypherred.infectedpartymode.overlay.ArenaChunkShadeOverlay;
+import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
@@ -92,7 +92,7 @@ public class InfectedPartymodePlugin extends Plugin
        ========================= */
 
 	@Inject
-	private ArenaChunkShadeOverlay arenaChunkShadeOverlay;
+	private ArenaRegionShadeOverlay arenaRegionShadeOverlay;
 
     /* =========================
        State
@@ -125,7 +125,7 @@ public class InfectedPartymodePlugin extends Plugin
 		gameTimer = new GameTimer(executor);
 
 		// === FINAL ARENA OVERLAY (Region-Locker-Style) ===
-		overlayManager.add(arenaChunkShadeOverlay);
+		overlayManager.add(arenaRegionShadeOverlay);
 
 		// === Side panel ===
 		BufferedImage icon = null;
@@ -158,7 +158,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(arenaChunkShadeOverlay);
+		overlayManager.remove(arenaRegionShadeOverlay);
 
 		if (navButton != null)
 		{
@@ -190,7 +190,7 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		areaManager.generatePlayerChunkArea();
+		areaManager.generatePlayerRegionArea(1);
 	}
 
 	public void stopGame()

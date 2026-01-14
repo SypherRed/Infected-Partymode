@@ -1,7 +1,6 @@
 package com.sypherred.infectedpartymode.party;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
-import com.sypherred.infectedpartymode.area.ChunkArea;
 import com.sypherred.infectedpartymode.model.GameSession;
 import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;

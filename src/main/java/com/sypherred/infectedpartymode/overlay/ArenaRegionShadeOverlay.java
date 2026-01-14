@@ -1,31 +1,33 @@
 package com.sypherred.infectedpartymode.overlay;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
-import com.sypherred.infectedpartymode.area.ChunkArea;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.WorldView;
-import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayUtil;
 
 import javax.inject.Inject;
 import java.awt.*;
 
-public class ArenaBorderSceneOverlay extends Overlay
+/**
+ * Arena visualization in Region-Locker style:
+ * - Player chunk remains normal
+ * - All other arena chunks are shaded uniformly
+ */
+public class ArenaRegionShadeOverlay extends Overlay
 {
-    private static final Color BORDER_COLOR = new Color(255, 0, 0, 220);
+    private static final Color SHADE_COLOR = new Color(90, 90, 90, 120);
     private static final int SCENE_SIZE = 104;
 
     private final Client client;
     private final AreaManager areaManager;
 
     @Inject
-    public ArenaBorderSceneOverlay(Client client, AreaManager areaManager)
+    public ArenaRegionShadeOverlay(Client client, AreaManager areaManager)
     {
         this.client = client;
         this.areaManager = areaManager;
@@ -36,52 +38,47 @@ public class ArenaBorderSceneOverlay extends Overlay
     }
 
     @Override
-    public Dimension render(Graphics2D graphics)
+    public Dimension render(Graphics2D g)
     {
         ChunkArea area = areaManager.getActiveArea();
-        if (area == null)
+        if (area == null || client.getLocalPlayer() == null)
         {
             return null;
         }
 
         WorldView worldView = client.getTopLevelWorldView();
-        Tile[][][] tiles = worldView.getScene().getTiles();
         int plane = worldView.getPlane();
 
-        if (tiles == null || plane < 0)
-        {
-            return null;
-        }
+        WorldPoint playerWp = client.getLocalPlayer().getWorldLocation();
+        int playerChunkX = playerWp.getX() >> 3;
+        int playerChunkY = playerWp.getY() >> 3;
 
-        for (int x = 0; x < SCENE_SIZE; x++)
+        for (int sceneX = 0; sceneX < SCENE_SIZE; sceneX++)
         {
-            for (int y = 0; y < SCENE_SIZE; y++)
+            for (int sceneY = 0; sceneY < SCENE_SIZE; sceneY++)
             {
-                Tile tile = tiles[plane][x][y];
-                if (tile == null)
+                WorldPoint wp = WorldPoint.fromScene(worldView, sceneX, sceneY, plane);
+                if (wp == null)
                 {
                     continue;
                 }
 
-                WorldPoint wp = tile.getWorldLocation();
                 int chunkX = wp.getX() >> 3;
                 int chunkY = wp.getY() >> 3;
 
+                // Only shade tiles that belong to the arena
                 if (!area.containsChunk(chunkX, chunkY))
                 {
                     continue;
                 }
 
-                boolean isBorder =
-                        (wp.getX() & 7) == 0 || (wp.getX() & 7) == 7 ||
-                                (wp.getY() & 7) == 0 || (wp.getY() & 7) == 7;
-
-                if (!isBorder)
+                // Do NOT shade the player's current chunk
+                if (chunkX == playerChunkX && chunkY == playerChunkY)
                 {
                     continue;
                 }
 
-                LocalPoint lp = LocalPoint.fromWorld(worldView, wp);
+                LocalPoint lp = LocalPoint.fromScene(sceneX, sceneY, worldView);
                 if (lp == null)
                 {
                     continue;
@@ -93,13 +90,8 @@ public class ArenaBorderSceneOverlay extends Overlay
                     continue;
                 }
 
-                OverlayUtil.renderPolygon(
-                        graphics,
-                        poly,
-                        BORDER_COLOR,
-                        null,
-                        new BasicStroke(2)
-                );
+                g.setColor(SHADE_COLOR);
+                g.fill(poly);
             }
         }
 
