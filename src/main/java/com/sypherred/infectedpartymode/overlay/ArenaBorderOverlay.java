@@ -4,6 +4,7 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.area.ChunkArea;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
+import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
@@ -14,13 +15,30 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 import javax.inject.Inject;
 import java.awt.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * DEBUG Overlay:
+ * - Draws chunk borders (8x8)
+ * - Draws a moving debug tile under the player
+ * - Logs when player leaves / re-enters the arena chunk
+ */
 public class ArenaBorderOverlay extends Overlay
 {
+    private static final Logger log =
+            LoggerFactory.getLogger(ArenaBorderOverlay.class);
+
     private static final Color BORDER_OUTLINE = new Color(255, 0, 0, 220);
     private static final Color BORDER_FILL = new Color(255, 0, 0, 40);
 
+    private static final Color DEBUG_TILE_OUTLINE = new Color(0, 255, 0, 220);
+    private static final Color DEBUG_TILE_FILL = new Color(0, 255, 0, 100);
+
     private final Client client;
     private final AreaManager areaManager;
+
+    private boolean wasInsideArena = true;
 
     @Inject
     public ArenaBorderOverlay(Client client, AreaManager areaManager)
@@ -37,69 +55,112 @@ public class ArenaBorderOverlay extends Overlay
     public Dimension render(Graphics2D graphics)
     {
         ChunkArea area = areaManager.getActiveArea();
-        if (area == null || client.getLocalPlayer() == null)
+        Player local = client.getLocalPlayer();
+
+        if (area == null || local == null)
         {
             return null;
         }
 
-        // Scene base in world coordinates
-        final int baseX = client.getBaseX();
-        final int baseY = client.getBaseY();
-        final int plane = client.getLocalPlayer().getWorldLocation().getPlane();
+        WorldPoint playerWp = local.getWorldLocation();
 
-        // Iterate only tiles that are currently in the scene (0..103)
-        // and draw those that are part of the arena border.
-        for (int sceneX = 0; sceneX < 104; sceneX++)
+        int playerChunkX = playerWp.getX() >> 3;
+        int playerChunkY = playerWp.getY() >> 3;
+
+        boolean isInside =
+                area.containsChunk(playerChunkX, playerChunkY);
+
+        // Log ONLY on state change
+        if (isInside != wasInsideArena)
         {
-            for (int sceneY = 0; sceneY < 104; sceneY++)
+            if (!isInside)
             {
-                int worldX = baseX + sceneX;
-                int worldY = baseY + sceneY;
+                log.warn(
+                        "DEBUG: Player LEFT arena chunk (player={}, arena={} / {})",
+                        playerChunkX + "," + playerChunkY,
+                        area.getBaseChunkX(),
+                        area.getBaseChunkY()
+                );
+            }
+            else
+            {
+                log.info("DEBUG: Player ENTERED arena chunk again");
+            }
+            wasInsideArena = isInside;
+        }
 
-                // Convert to chunk coords (8x8)
-                int chunkX = worldX >> 3;
-                int chunkY = worldY >> 3;
+        int plane = playerWp.getPlane();
 
-                // If not inside arena chunk area -> skip
-                if (!area.containsChunk(chunkX, chunkY))
-                {
-                    continue;
-                }
+        /* =========================
+           Draw CHUNK BORDER (8x8)
+           ========================= */
+        int baseChunkX = area.getBaseChunkX();
+        int baseChunkY = area.getBaseChunkY();
 
-                // Determine tile position inside its chunk (0..7)
-                int inChunkX = worldX & 7;
-                int inChunkY = worldY & 7;
+        int startX = baseChunkX * 8;
+        int startY = baseChunkY * 8;
 
-                // Border tiles only
+        for (int dx = 0; dx < 8; dx++)
+        {
+            for (int dy = 0; dy < 8; dy++)
+            {
                 boolean isBorder =
-                        inChunkX == 0 || inChunkX == 7 ||
-                                inChunkY == 0 || inChunkY == 7;
+                        dx == 0 || dx == 7 ||
+                                dy == 0 || dy == 7;
 
                 if (!isBorder)
                 {
                     continue;
                 }
 
-                // Build LocalPoint directly from scene coordinates
-                // LocalPoint expects "local" = scene tile * 128
-                LocalPoint lp = new LocalPoint(sceneX * 128, sceneY * 128);
-
-                Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-                if (poly == null)
-                {
-                    continue;
-                }
-
-                OverlayUtil.renderPolygon(
-                        graphics,
-                        poly,
-                        BORDER_OUTLINE,
-                        BORDER_FILL,
-                        new BasicStroke(2)
+                WorldPoint wp = new WorldPoint(
+                        startX + dx,
+                        startY + dy,
+                        plane
                 );
+
+                drawTile(graphics, wp, BORDER_OUTLINE, BORDER_FILL);
             }
         }
 
+        /* =========================
+           Draw DEBUG TILE under player
+           ========================= */
+        drawTile(
+                graphics,
+                playerWp,
+                DEBUG_TILE_OUTLINE,
+                DEBUG_TILE_FILL
+        );
+
         return null;
+    }
+
+    private void drawTile(
+            Graphics2D graphics,
+            WorldPoint worldPoint,
+            Color outline,
+            Color fill
+    )
+    {
+        LocalPoint lp = LocalPoint.fromWorld(client, worldPoint);
+        if (lp == null)
+        {
+            return;
+        }
+
+        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+        if (poly == null)
+        {
+            return;
+        }
+
+        OverlayUtil.renderPolygon(
+                graphics,
+                poly,
+                outline,
+                fill,
+                new BasicStroke(2)
+        );
     }
 }
