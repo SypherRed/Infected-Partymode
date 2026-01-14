@@ -6,6 +6,7 @@ import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -15,17 +16,16 @@ import javax.inject.Inject;
 import java.awt.*;
 
 /**
- * Final Arena Overlay
- * - Displays the active 8x8 chunk arena
- * - Scene-based rendering (stable)
- * - World-based logic (correct gameplay)
+ * Final stable arena overlay
+ * - Renders arena RELATIVE to player (stable)
+ * - Arena logic stays chunk-based (correct)
  */
 public class ArenaBorderOverlay extends Overlay
 {
     private static final Color ARENA_FILL =
-            new Color(255, 0, 0, 35);
+            new Color(255, 0, 0, 40);
     private static final Color ARENA_BORDER =
-            new Color(255, 0, 0, 200);
+            new Color(255, 0, 0, 220);
 
     private final Client client;
     private final AreaManager areaManager;
@@ -45,29 +45,31 @@ public class ArenaBorderOverlay extends Overlay
     public Dimension render(Graphics2D graphics)
     {
         Player local = client.getLocalPlayer();
-        if (local == null)
-        {
-            return null;
-        }
-
         ChunkArea area = areaManager.getActiveArea();
-        if (area == null)
+
+        if (local == null || area == null)
         {
             return null;
         }
 
-        int baseX = client.getBaseX();
-        int baseY = client.getBaseY();
+        WorldPoint playerWp = local.getWorldLocation();
+        LocalPoint playerLp = local.getLocalLocation();
+
+        int baseWorldX = playerWp.getX();
+        int baseWorldY = playerWp.getY();
+
+        int baseChunkX = area.getBaseChunkX();
+        int baseChunkY = area.getBaseChunkY();
 
         /* =========================
-           Render arena via SCENE
+           Render tiles around player
            ========================= */
-        for (int sceneX = 0; sceneX < 104; sceneX++)
+        for (int dx = -16; dx <= 16; dx++)
         {
-            for (int sceneY = 0; sceneY < 104; sceneY++)
+            for (int dy = -16; dy <= 16; dy++)
             {
-                int worldX = baseX + sceneX;
-                int worldY = baseY + sceneY;
+                int worldX = baseWorldX + dx;
+                int worldY = baseWorldY + dy;
 
                 int chunkX = worldX >> 3;
                 int chunkY = worldY >> 3;
@@ -77,16 +79,13 @@ public class ArenaBorderOverlay extends Overlay
                     continue;
                 }
 
-                int inChunkX = worldX & 7;
-                int inChunkY = worldY & 7;
-
                 boolean isBorder =
-                        inChunkX == 0 || inChunkX == 7 ||
-                                inChunkY == 0 || inChunkY == 7;
+                        (worldX & 7) == 0 || (worldX & 7) == 7 ||
+                                (worldY & 7) == 0 || (worldY & 7) == 7;
 
                 LocalPoint lp = new LocalPoint(
-                        sceneX * 128 + 64,
-                        sceneY * 128 + 64
+                        playerLp.getX() + dx * 128,
+                        playerLp.getY() + dy * 128
                 );
 
                 Polygon poly = Perspective.getCanvasTilePoly(client, lp);
