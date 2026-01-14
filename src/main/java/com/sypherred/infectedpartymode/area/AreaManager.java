@@ -121,6 +121,12 @@ public class AreaManager
         return !allowedRegions.isEmpty();
     }
 
+    public void setActiveRegions(Set<Integer> regions)
+    {
+        allowedRegions.clear();
+        allowedRegions.addAll(regions);
+    }
+
     /**
      * Checks if a world point lies inside the allowed region set.
      */

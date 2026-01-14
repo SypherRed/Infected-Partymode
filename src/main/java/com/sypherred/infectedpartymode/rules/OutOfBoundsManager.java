@@ -6,13 +6,12 @@ import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.ui.overlay.infobox.Timer;
 import net.runelite.client.Notifier;
 
 import javax.inject.Inject;
 
 /**
- * Checks whether the local player leaves the active arena.
+ * Checks whether the local player leaves the active region-based arena.
  */
 public class OutOfBoundsManager
 {
@@ -43,7 +42,8 @@ public class OutOfBoundsManager
             return;
         }
 
-        if (areaManager.getActiveArea() == null)
+        // No active arena → no checks
+        if (!areaManager.hasActiveArea())
         {
             reset();
             return;
@@ -51,18 +51,20 @@ public class OutOfBoundsManager
 
         WorldPoint wp = local.getWorldLocation();
 
+        // Player is inside allowed region(s)
         if (areaManager.isInsideArea(wp))
         {
             reset();
             return;
         }
 
+        // Player is outside
         outOfBoundsTicks++;
 
         if (outOfBoundsTicks >= GRACE_TICKS && !warned)
         {
             warned = true;
-            notifier.notify("You have left the arena! Return back!");
+            notifier.notify("You have left the arena! Please return.");
         }
     }
 

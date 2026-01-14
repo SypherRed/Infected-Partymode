@@ -13,7 +13,10 @@ import net.runelite.client.party.messages.PartyChatMessage;
 
 import javax.inject.Inject;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class PartySyncManager
@@ -42,14 +45,12 @@ public class PartySyncManager
     @Subscribe
     public void onPartyChanged(PartyChanged e)
     {
-        // partyId ist null, wenn du in keiner Party bist
         inParty = e.getPartyId() != null;
         log.debug("Party changed: inParty={}", inParty);
     }
 
     private void sendPartyString(String payload)
     {
-        // Wenn du nicht in einer Party bist, darfst du NICHT senden (sonst: "no session id")
         if (!inParty)
         {
             log.debug("Not in party -> skip send: {}", payload);
@@ -65,31 +66,30 @@ public class PartySyncManager
 
     public void sendInfectionState(String playerName, InfectionState state)
     {
-        // Local immer aktualisieren
         updateLocalState(playerName, state);
-
-        // Remote via PartyChatMessage
         sendPartyString("INFECT|" + playerName + "|" + state.name());
     }
 
     /* =========================
-       Area sync
+       Area (Region) sync
        ========================= */
 
-    public void sendArea(ChunkArea area)
+    /**
+     * Sends the currently allowed region IDs to the party.
+     */
+    public void sendArea()
     {
-        if (area == null)
+        Set<Integer> regions = areaManager.getAllowedRegions();
+        if (regions.isEmpty())
         {
             return;
         }
 
-        areaManager.setActiveArea(area);
+        String payload = regions.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
 
-        sendPartyString("AREA|"
-                + area.getBaseChunkX() + "|"
-                + area.getBaseChunkY() + "|"
-                + area.getWidthChunks() + "|"
-                + area.getHeightChunks());
+        sendPartyString("AREA|" + payload);
     }
 
     /* =========================
@@ -99,7 +99,6 @@ public class PartySyncManager
     public void sendGameStart(int durationSeconds)
     {
         long start = System.currentTimeMillis();
-
         gameSession.start(start, durationSeconds);
 
         sendPartyString("TIMER|" + start + "|" + durationSeconds);
@@ -128,7 +127,6 @@ public class PartySyncManager
         switch (parts[0])
         {
             case "INFECT":
-                // INFECT|player|STATE
                 if (parts.length >= 3)
                 {
                     String player = parts[1];
@@ -141,28 +139,24 @@ public class PartySyncManager
                 break;
 
             case "AREA":
-                // AREA|baseX|baseY|w|h
-                if (parts.length >= 5)
+                // AREA|regionId,regionId,regionId
+                if (parts.length >= 2)
                 {
-                    Integer baseX = tryParseInt(parts[1]);
-                    Integer baseY = tryParseInt(parts[2]);
-                    Integer w = tryParseInt(parts[3]);
-                    Integer h = tryParseInt(parts[4]);
-
-                    if (baseX != null && baseY != null && w != null && h != null)
+                    Set<Integer> regions = parseRegionSet(parts[1]);
+                    if (!regions.isEmpty())
                     {
-                        areaManager.setActiveArea(new ChunkArea(baseX, baseY, w, h));
+                        areaManager.clearArea();
+                        areaManager.setActiveRegions(regions);
+                        log.info("Received arena regions from party: {}", regions);
                     }
                 }
                 break;
 
             case "TIMER":
-                // TIMER|startMillis|durationSeconds
                 if (parts.length >= 3)
                 {
                     Long start = tryParseLong(parts[1]);
                     Integer dur = tryParseInt(parts[2]);
-
                     if (start != null && dur != null)
                     {
                         gameSession.start(start, dur);
@@ -171,7 +165,6 @@ public class PartySyncManager
                 break;
 
             default:
-                // ignore
                 break;
         }
     }
@@ -206,6 +199,20 @@ public class PartySyncManager
     /* =========================
        Helpers
        ========================= */
+
+    private static Set<Integer> parseRegionSet(String csv)
+    {
+        Set<Integer> set = new HashSet<>();
+        for (String s : csv.split(","))
+        {
+            Integer v = tryParseInt(s);
+            if (v != null)
+            {
+                set.add(v);
+            }
+        }
+        return set;
+    }
 
     private static Integer tryParseInt(String s)
     {
