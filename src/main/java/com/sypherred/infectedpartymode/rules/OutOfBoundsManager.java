@@ -2,11 +2,11 @@ package com.sypherred.infectedpartymode.rules;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
 import net.runelite.api.Client;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.Notifier;
 
 import javax.inject.Inject;
 
@@ -19,17 +19,15 @@ public class OutOfBoundsManager
 
     private final Client client;
     private final AreaManager areaManager;
-    private final Notifier notifier;
 
     private int outOfBoundsTicks = 0;
     private boolean warned = false;
 
     @Inject
-    public OutOfBoundsManager(Client client, AreaManager areaManager, Notifier notifier)
+    public OutOfBoundsManager(Client client, AreaManager areaManager)
     {
         this.client = client;
         this.areaManager = areaManager;
-        this.notifier = notifier;
     }
 
     @Subscribe
@@ -64,7 +62,13 @@ public class OutOfBoundsManager
         if (outOfBoundsTicks >= GRACE_TICKS && !warned)
         {
             warned = true;
-            notifier.notify("You have left the arena! Please return.");
+            client.addChatMessage(
+                    ChatMessageType.GAMEMESSAGE,
+                    "",
+                    "You have left the arena! Please return.",
+                    null
+            );
+
         }
     }
 

@@ -127,7 +127,6 @@ public class InfectedPartymodePlugin extends Plugin
 		log.info("Infected Partymode starting");
 
 		// Register event listeners
-		eventBus.register(this);
 		eventBus.register(outOfBoundsManager);
 
 		gameTimer = new GameTimer(executor);
@@ -162,7 +161,6 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		log.info("Infected Partymode shutting down");
 
-		eventBus.unregister(this);
 		eventBus.unregister(outOfBoundsManager);
 
 		stopGame();
@@ -199,7 +197,6 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		// Phase 8 v2.0: region-based arena
 		areaManager.generatePlayerRegionArea(1);
 	}
 
@@ -229,6 +226,7 @@ public class InfectedPartymodePlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
+
 		if (gameState != GameState.RUNNING)
 		{
 			return;
