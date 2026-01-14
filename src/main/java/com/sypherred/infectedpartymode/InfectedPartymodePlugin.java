@@ -26,6 +26,7 @@ import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
+import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
@@ -71,6 +72,9 @@ public class InfectedPartymodePlugin extends Plugin
 	private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
 
 	@Inject
+	private ArenaDebugOverlay arenaDebugOverlay;
+
+	@Inject
 	private GameInfoOverlay gameInfoOverlay;
 
 	@Inject
@@ -104,7 +108,8 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(arenaBorderSceneOverlay);
+		overlayManager.add(arenaDebugOverlay);
+		// overlayManager.add(arenaBorderSceneOverlay);
 		overlayManager.add(gameInfoOverlay);
 
 		BufferedImage icon = null;
@@ -140,7 +145,8 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(arenaBorderSceneOverlay);
+		overlayManager.remove(arenaDebugOverlay);
+		// overlayManager.remove(arenaBorderSceneOverlay);
 		overlayManager.remove(gameInfoOverlay);
 
 		if (navButton != null)
