@@ -151,7 +151,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.add(sceneTileDebugOverlay);
+		overlayManager.remove(sceneTileDebugOverlay);
 		//overlayManager.remove(arenaDebugOverlay);
 		// overlayManager.remove(arenaBorderSceneOverlay);
 		//overlayManager.remove(gameInfoOverlay);
