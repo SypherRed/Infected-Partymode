@@ -20,20 +20,25 @@ import org.slf4j.LoggerFactory;
 
 /**
  * DEBUG Overlay:
- * - Always draws a debug tile under the player
- * - Draws chunk borders (8x8) when an arena is active
- * - Logs when player leaves / re-enters the arena chunk
+ * - Always draws a green debug tile under the player
+ * - Draws a FILLED 8x8 chunk arena (transparent)
+ * - Draws a red border around the chunk
+ * - Logs when player leaves / re-enters the arena
  */
 public class ArenaBorderOverlay extends Overlay
 {
     private static final Logger log =
             LoggerFactory.getLogger(ArenaBorderOverlay.class);
 
-    private static final Color BORDER_OUTLINE = new Color(255, 0, 0, 220);
-    private static final Color BORDER_FILL = new Color(255, 0, 0, 40);
+    private static final Color CHUNK_FILL =
+            new Color(255, 0, 0, 25);   // very transparent red
+    private static final Color BORDER_OUTLINE =
+            new Color(255, 0, 0, 220);
 
-    private static final Color DEBUG_TILE_OUTLINE = new Color(0, 255, 0, 220);
-    private static final Color DEBUG_TILE_FILL = new Color(0, 255, 0, 100);
+    private static final Color DEBUG_TILE_OUTLINE =
+            new Color(0, 255, 0, 220);
+    private static final Color DEBUG_TILE_FILL =
+            new Color(0, 255, 0, 100);
 
     private final Client client;
     private final AreaManager areaManager;
@@ -63,78 +68,56 @@ public class ArenaBorderOverlay extends Overlay
         WorldPoint playerWp = local.getWorldLocation();
 
         /* =========================
-           ALWAYS draw DEBUG TILE under player
+           DEBUG TILE under player (always)
            ========================= */
-        drawTile(
-                graphics,
-                playerWp,
-                DEBUG_TILE_OUTLINE,
-                DEBUG_TILE_FILL
-        );
+        drawTile(graphics, playerWp, DEBUG_TILE_OUTLINE, DEBUG_TILE_FILL);
 
         ChunkArea area = areaManager.getActiveArea();
         if (area == null)
         {
-            // No arena active yet -> debug tile only
             return null;
         }
 
         int playerChunkX = playerWp.getX() >> 3;
         int playerChunkY = playerWp.getY() >> 3;
 
-        boolean isInside =
-                area.containsChunk(playerChunkX, playerChunkY);
+        boolean isInside = area.containsChunk(playerChunkX, playerChunkY);
 
-        // Log ONLY on state change
         if (isInside != wasInsideArena)
         {
             if (!isInside)
             {
-                log.warn(
-                        "DEBUG: Player LEFT arena chunk (player={}, arena={} / {})",
-                        playerChunkX + "," + playerChunkY,
-                        area.getBaseChunkX(),
-                        area.getBaseChunkY()
-                );
+                log.warn("DEBUG: Player LEFT arena chunk");
             }
             else
             {
-                log.info("DEBUG: Player ENTERED arena chunk again");
+                log.info("DEBUG: Player ENTERED arena chunk");
             }
             wasInsideArena = isInside;
         }
 
         int plane = playerWp.getPlane();
 
-        /* =========================
-           Draw CHUNK BORDER (8x8)
-           ========================= */
         int baseChunkX = area.getBaseChunkX();
         int baseChunkY = area.getBaseChunkY();
 
         int startX = baseChunkX * 8;
         int startY = baseChunkY * 8;
 
+        /* =========================
+           Draw FULL chunk (8x8)
+           ========================= */
         for (int dx = 0; dx < 8; dx++)
         {
             for (int dy = 0; dy < 8; dy++)
             {
-                boolean isBorder =
-                        dx == 0 || dx == 7 ||
-                                dy == 0 || dy == 7;
-
-                if (!isBorder)
-                {
-                    continue;
-                }
-
                 WorldPoint wp = new WorldPoint(
                         startX + dx,
                         startY + dy,
                         plane
                 );
 
-                drawTile(graphics, wp, BORDER_OUTLINE, BORDER_FILL);
+                drawTile(graphics, wp, BORDER_OUTLINE, CHUNK_FILL);
             }
         }
 
@@ -165,7 +148,7 @@ public class ArenaBorderOverlay extends Overlay
                 poly,
                 outline,
                 fill,
-                new BasicStroke(2)
+                new BasicStroke(1.5f)
         );
     }
 }
