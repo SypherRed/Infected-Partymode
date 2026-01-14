@@ -43,7 +43,7 @@ public class AreaManager
         int chunkX = wp.getX() >> 3;
         int chunkY = wp.getY() >> 3;
 
-        activeArea = new ChunkArea(chunkX, chunkY, 1, 1);
+        activeArea = new ChunkArea(chunkX - 1, chunkY - 1, 3, 3);
 
         log.info(
                 "Arena set to player chunk {}, {} (1x1)",
