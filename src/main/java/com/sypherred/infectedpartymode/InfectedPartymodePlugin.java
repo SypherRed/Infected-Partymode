@@ -25,7 +25,7 @@ import net.runelite.client.ui.ClientToolbar;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
-import com.sypherred.infectedpartymode.overlay.ArenaBorderOverlay;
+import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
@@ -68,7 +68,7 @@ public class InfectedPartymodePlugin extends Plugin
 	private OverlayManager overlayManager;
 
 	@Inject
-	private ArenaBorderOverlay arenaBorderOverlay;
+	private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
 
 	@Inject
 	private GameInfoOverlay gameInfoOverlay;
@@ -104,7 +104,7 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(arenaBorderOverlay);
+		overlayManager.add(arenaBorderSceneOverlay);
 		overlayManager.add(gameInfoOverlay);
 
 		BufferedImage icon = null;
@@ -140,7 +140,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(arenaBorderOverlay);
+		overlayManager.remove(arenaBorderSceneOverlay);
 		overlayManager.remove(gameInfoOverlay);
 
 		if (navButton != null)
