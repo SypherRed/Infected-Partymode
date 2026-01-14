@@ -22,17 +22,19 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.ClientToolbar;
 
-import com.sypherred.infectedpartymode.party.PartySyncManager;
+
 import com.sypherred.infectedpartymode.area.AreaManager;
-import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
-//import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
-//import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
-//import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
-import com.sypherred.infectedpartymode.overlay.SceneTileDebugOverlay;
-import com.sypherred.infectedpartymode.rules.InfectionManager;
-import com.sypherred.infectedpartymode.ui.InfectedPanel;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
+//import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
+//import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
+import com.sypherred.infectedpartymode.overlay.ArenaFillOverlay;
+//import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
+//import com.sypherred.infectedpartymode.overlay.SceneTileDebugOverlay;
+import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
+import com.sypherred.infectedpartymode.rules.InfectionManager;
+import com.sypherred.infectedpartymode.ui.InfectedPanel;
 
 
 @PluginDescriptor(
@@ -46,11 +48,47 @@ public class InfectedPartymodePlugin extends Plugin
 	private static final Logger log =
 			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
 
+	//@Inject
+	//private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
+
+	//@Inject
+	//private ArenaDebugOverlay arenaDebugOverlay;
+
+	@Inject
+	private ArenaFillOverlay arenaFillOverlay;
+
+	@Inject
+	private AreaManager areaManager;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
 	@Inject
 	private Client client;
 
 	@Inject
 	private EventBus eventBus;
+
+	//@Inject
+	//private GameInfoOverlay gameInfoOverlay;
+
+	@Inject
+	private InfectedPartymodeConfig config;
+
+	@Inject
+	private InfectionManager infectionManager;
+
+	@Inject
+	private InfectedPanel infectedPanel;
+
+	@Inject
+	private OutOfBoundsManager outOfBoundsManager;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ScheduledExecutorService executor;
 
 	@Inject
 	private PartyService partyService;
@@ -58,46 +96,10 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private PartySyncManager partySyncManager;
 
-	@Inject
-	private AreaManager areaManager;
-
-	@Inject
-	private OutOfBoundsManager outOfBoundsManager;
-
-	@Inject
-	private InfectedPartymodeConfig config;
-
-	@Inject
-	private OverlayManager overlayManager;
-
-	//@Inject
-	//private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
-
-	//@Inject
-	//private ArenaDebugOverlay arenaDebugOverlay;
-
-	//@Inject
-	//private GameInfoOverlay gameInfoOverlay;
-
-	@Inject
-	private SceneTileDebugOverlay sceneTileDebugOverlay;
-
-	@Inject
-	private InfectionManager infectionManager;
-
-	@Inject
-	private ScheduledExecutorService executor;
-
-	@Inject
-	private ClientToolbar clientToolbar;
-
-	@Inject
-	private InfectedPanel infectedPanel;
-
-	private NavigationButton navButton;
 
 	private GameState gameState = GameState.IDLE;
 	private GameTimer gameTimer;
+	private NavigationButton navButton;
 
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
@@ -113,7 +115,7 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(sceneTileDebugOverlay);
+		overlayManager.add(arenaFillOverlay);
 		//overlayManager.add(arenaDebugOverlay);
 		// overlayManager.add(arenaBorderSceneOverlay);
 		//overlayManager.add(gameInfoOverlay);
@@ -151,7 +153,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(sceneTileDebugOverlay);
+		overlayManager.remove(arenaFillOverlay);
 		//overlayManager.remove(arenaDebugOverlay);
 		// overlayManager.remove(arenaBorderSceneOverlay);
 		//overlayManager.remove(gameInfoOverlay);
