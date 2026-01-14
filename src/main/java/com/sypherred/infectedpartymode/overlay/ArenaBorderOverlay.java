@@ -18,10 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * FINAL DEBUG Overlay:
- * - Draws green debug tile under the player (always)
- * - Draws the arena by iterating over the SCENE (not world!)
- * - Guaranteed visible when arena is near the player
+ * FINAL DEBUG Overlay (CORRECT LocalPoint math)
  */
 public class ArenaBorderOverlay extends Overlay
 {
@@ -31,7 +28,7 @@ public class ArenaBorderOverlay extends Overlay
     private static final Color CHUNK_FILL =
             new Color(255, 0, 0, 30);
     private static final Color BORDER_OUTLINE =
-            new Color(255, 0, 0, 200);
+            new Color(255, 0, 0, 220);
 
     private static final Color DEBUG_TILE_OUTLINE =
             new Color(0, 255, 0, 220);
@@ -66,8 +63,12 @@ public class ArenaBorderOverlay extends Overlay
         /* =========================
            DEBUG TILE under player
            ========================= */
-        LocalPoint playerLp = local.getLocalLocation();
-        drawLocalTile(graphics, playerLp, DEBUG_TILE_OUTLINE, DEBUG_TILE_FILL);
+        drawLocalTile(
+                graphics,
+                local.getLocalLocation(),
+                DEBUG_TILE_OUTLINE,
+                DEBUG_TILE_FILL
+        );
 
         ChunkArea area = areaManager.getActiveArea();
         if (area == null)
@@ -77,7 +78,6 @@ public class ArenaBorderOverlay extends Overlay
 
         int baseX = client.getBaseX();
         int baseY = client.getBaseY();
-        int plane = local.getWorldLocation().getPlane();
 
         int playerChunkX = local.getWorldLocation().getX() >> 3;
         int playerChunkY = local.getWorldLocation().getY() >> 3;
@@ -109,18 +109,18 @@ public class ArenaBorderOverlay extends Overlay
                     continue;
                 }
 
-                int inChunkX = worldX & 7;
-                int inChunkY = worldY & 7;
+                // CENTER of tile (THIS WAS THE BUG)
+                LocalPoint lp = new LocalPoint(
+                        sceneX * 128 + 64,
+                        sceneY * 128 + 64
+                );
 
-                boolean isBorder =
-                        inChunkX == 0 || inChunkX == 7 ||
-                                inChunkY == 0 || inChunkY == 7;
-
-                Color outline = isBorder ? BORDER_OUTLINE : BORDER_OUTLINE;
-                Color fill = isBorder ? CHUNK_FILL : CHUNK_FILL;
-
-                LocalPoint lp = new LocalPoint(sceneX * 128, sceneY * 128);
-                drawLocalTile(graphics, lp, outline, fill);
+                drawLocalTile(
+                        graphics,
+                        lp,
+                        BORDER_OUTLINE,
+                        CHUNK_FILL
+                );
             }
         }
 
