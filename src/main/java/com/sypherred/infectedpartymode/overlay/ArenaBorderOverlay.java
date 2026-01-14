@@ -60,67 +60,35 @@ public class ArenaBorderOverlay extends Overlay
             return null;
         }
 
-        /* =========================
-           DEBUG TILE under player
-           ========================= */
-        drawLocalTile(
-                graphics,
-                local.getLocalLocation(),
-                DEBUG_TILE_OUTLINE,
-                DEBUG_TILE_FILL
-        );
+        // 1) Beweis: Overlay läuft
+        graphics.setColor(Color.MAGENTA);
+        graphics.setFont(new Font("Arial", Font.BOLD, 16));
+        graphics.drawString("OVERLAY ACTIVE", 20, 40);
 
-        ChunkArea area = areaManager.getActiveArea();
-        if (area == null)
+        // 2) Beweis: zeichne IMMER die 5x5 Tiles um den Spieler
+        LocalPoint center = local.getLocalLocation();
+        int cx = center.getX();
+        int cy = center.getY();
+
+        for (int dx = -2; dx <= 2; dx++)
         {
-            return null;
-        }
-
-        int baseX = client.getBaseX();
-        int baseY = client.getBaseY();
-
-        int playerChunkX = local.getWorldLocation().getX() >> 3;
-        int playerChunkY = local.getWorldLocation().getY() >> 3;
-
-        boolean inside = area.containsChunk(playerChunkX, playerChunkY);
-        if (inside != wasInsideArena)
-        {
-            log.warn(inside
-                    ? "DEBUG: Player ENTERED arena chunk"
-                    : "DEBUG: Player LEFT arena chunk");
-            wasInsideArena = inside;
-        }
-
-        /* =========================
-           Iterate over SCENE tiles
-           ========================= */
-        for (int sceneX = 0; sceneX < 104; sceneX++)
-        {
-            for (int sceneY = 0; sceneY < 104; sceneY++)
+            for (int dy = -2; dy <= 2; dy++)
             {
-                int worldX = baseX + sceneX;
-                int worldY = baseY + sceneY;
+                LocalPoint lp = new LocalPoint(
+                        cx + dx * 128,
+                        cy + dy * 128
+                );
 
-                int chunkX = worldX >> 3;
-                int chunkY = worldY >> 3;
-
-                if (!area.containsChunk(chunkX, chunkY))
+                Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+                if (poly == null)
                 {
                     continue;
                 }
 
-                // CENTER of tile (THIS WAS THE BUG)
-                LocalPoint lp = new LocalPoint(
-                        sceneX * 128 + 64,
-                        sceneY * 128 + 64
-                );
-
-                drawLocalTile(
-                        graphics,
-                        lp,
-                        BORDER_OUTLINE,
-                        CHUNK_FILL
-                );
+                graphics.setColor(new Color(255, 0, 0, 120));
+                graphics.fill(poly);
+                graphics.setColor(Color.RED);
+                graphics.draw(poly);
             }
         }
 
