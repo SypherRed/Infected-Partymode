@@ -6,7 +6,6 @@ import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -19,11 +18,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DEBUG Overlay:
- * - Always draws a green debug tile under the player
- * - Draws a FILLED 8x8 chunk arena (transparent)
- * - Draws a red border around the chunk
- * - Logs when player leaves / re-enters the arena
+ * FINAL DEBUG Overlay:
+ * - Draws green debug tile under the player (always)
+ * - Draws the arena by iterating over the SCENE (not world!)
+ * - Guaranteed visible when arena is near the player
  */
 public class ArenaBorderOverlay extends Overlay
 {
@@ -31,14 +29,14 @@ public class ArenaBorderOverlay extends Overlay
             LoggerFactory.getLogger(ArenaBorderOverlay.class);
 
     private static final Color CHUNK_FILL =
-            new Color(255, 0, 0, 25);   // very transparent red
+            new Color(255, 0, 0, 30);
     private static final Color BORDER_OUTLINE =
-            new Color(255, 0, 0, 220);
+            new Color(255, 0, 0, 200);
 
     private static final Color DEBUG_TILE_OUTLINE =
             new Color(0, 255, 0, 220);
     private static final Color DEBUG_TILE_FILL =
-            new Color(0, 255, 0, 100);
+            new Color(0, 255, 0, 120);
 
     private final Client client;
     private final AreaManager areaManager;
@@ -65,12 +63,11 @@ public class ArenaBorderOverlay extends Overlay
             return null;
         }
 
-        WorldPoint playerWp = local.getWorldLocation();
-
         /* =========================
-           DEBUG TILE under player (always)
+           DEBUG TILE under player
            ========================= */
-        drawTile(graphics, playerWp, DEBUG_TILE_OUTLINE, DEBUG_TILE_FILL);
+        LocalPoint playerLp = local.getLocalLocation();
+        drawLocalTile(graphics, playerLp, DEBUG_TILE_OUTLINE, DEBUG_TILE_FILL);
 
         ChunkArea area = areaManager.getActiveArea();
         if (area == null)
@@ -78,60 +75,65 @@ public class ArenaBorderOverlay extends Overlay
             return null;
         }
 
-        int playerChunkX = playerWp.getX() >> 3;
-        int playerChunkY = playerWp.getY() >> 3;
+        int baseX = client.getBaseX();
+        int baseY = client.getBaseY();
+        int plane = local.getWorldLocation().getPlane();
 
-        boolean isInside = area.containsChunk(playerChunkX, playerChunkY);
+        int playerChunkX = local.getWorldLocation().getX() >> 3;
+        int playerChunkY = local.getWorldLocation().getY() >> 3;
 
-        if (isInside != wasInsideArena)
+        boolean inside = area.containsChunk(playerChunkX, playerChunkY);
+        if (inside != wasInsideArena)
         {
-            if (!isInside)
-            {
-                log.warn("DEBUG: Player LEFT arena chunk");
-            }
-            else
-            {
-                log.info("DEBUG: Player ENTERED arena chunk");
-            }
-            wasInsideArena = isInside;
+            log.warn(inside
+                    ? "DEBUG: Player ENTERED arena chunk"
+                    : "DEBUG: Player LEFT arena chunk");
+            wasInsideArena = inside;
         }
 
-        int plane = playerWp.getPlane();
-
-        int baseChunkX = area.getBaseChunkX();
-        int baseChunkY = area.getBaseChunkY();
-
-        int startX = baseChunkX * 8;
-        int startY = baseChunkY * 8;
-
         /* =========================
-           Draw FULL chunk (8x8)
+           Iterate over SCENE tiles
            ========================= */
-        for (int dx = 0; dx < 8; dx++)
+        for (int sceneX = 0; sceneX < 104; sceneX++)
         {
-            for (int dy = 0; dy < 8; dy++)
+            for (int sceneY = 0; sceneY < 104; sceneY++)
             {
-                WorldPoint wp = new WorldPoint(
-                        startX + dx,
-                        startY + dy,
-                        plane
-                );
+                int worldX = baseX + sceneX;
+                int worldY = baseY + sceneY;
 
-                drawTile(graphics, wp, BORDER_OUTLINE, CHUNK_FILL);
+                int chunkX = worldX >> 3;
+                int chunkY = worldY >> 3;
+
+                if (!area.containsChunk(chunkX, chunkY))
+                {
+                    continue;
+                }
+
+                int inChunkX = worldX & 7;
+                int inChunkY = worldY & 7;
+
+                boolean isBorder =
+                        inChunkX == 0 || inChunkX == 7 ||
+                                inChunkY == 0 || inChunkY == 7;
+
+                Color outline = isBorder ? BORDER_OUTLINE : BORDER_OUTLINE;
+                Color fill = isBorder ? CHUNK_FILL : CHUNK_FILL;
+
+                LocalPoint lp = new LocalPoint(sceneX * 128, sceneY * 128);
+                drawLocalTile(graphics, lp, outline, fill);
             }
         }
 
         return null;
     }
 
-    private void drawTile(
+    private void drawLocalTile(
             Graphics2D graphics,
-            WorldPoint worldPoint,
+            LocalPoint lp,
             Color outline,
             Color fill
     )
     {
-        LocalPoint lp = LocalPoint.fromWorld(client, worldPoint);
         if (lp == null)
         {
             return;
