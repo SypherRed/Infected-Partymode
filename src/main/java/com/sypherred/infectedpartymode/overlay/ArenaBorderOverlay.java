@@ -13,11 +13,17 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import javax.inject.Inject;
 import java.awt.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Renders the borders of the active chunk arena.
  */
 public class ArenaBorderOverlay extends Overlay
 {
+    private static final Logger log =
+            LoggerFactory.getLogger(ArenaBorderOverlay.class);
+
     private static final Color BORDER_COLOR = new Color(255, 50, 50, 180);
 
     private final Client client;
@@ -31,7 +37,6 @@ public class ArenaBorderOverlay extends Overlay
 
         setLayer(OverlayLayer.ABOVE_SCENE);
         setPosition(OverlayPosition.DYNAMIC);
-
         setPriority(Overlay.PRIORITY_HIGH);
     }
 
@@ -39,6 +44,9 @@ public class ArenaBorderOverlay extends Overlay
     public Dimension render(Graphics2D graphics)
     {
         ChunkArea area = areaManager.getActiveArea();
+
+        log.debug("ArenaBorderOverlay render called");
+
         if (area == null)
         {
             return null;
@@ -48,6 +56,12 @@ public class ArenaBorderOverlay extends Overlay
         int startChunkY = area.getBaseChunkY();
         int endChunkX = startChunkX + area.getWidthChunks() - 1;
         int endChunkY = startChunkY + area.getHeightChunks() - 1;
+
+        log.debug(
+                "Rendering arena border: chunks {}:{} to {}:{}",
+                startChunkX, startChunkY,
+                endChunkX, endChunkY
+        );
 
         // Iterate over border chunks only
         for (int cx = startChunkX; cx <= endChunkX; cx++)
@@ -66,6 +80,7 @@ public class ArenaBorderOverlay extends Overlay
                 renderChunkBorder(graphics, cx, cy);
             }
         }
+
         return null;
     }
 
@@ -91,7 +106,12 @@ public class ArenaBorderOverlay extends Overlay
                     continue;
                 }
 
-                WorldPoint wp = new WorldPoint(tileStartX + dx, tileStartY + dy, plane);
+                WorldPoint wp = new WorldPoint(
+                        tileStartX + dx,
+                        tileStartY + dy,
+                        plane
+                );
+
                 drawTile(graphics, wp);
             }
         }
@@ -102,6 +122,7 @@ public class ArenaBorderOverlay extends Overlay
         LocalPoint lp = LocalPoint.fromWorld(client, worldPoint);
         if (lp == null)
         {
+            log.trace("Tile not in scene: {}", worldPoint);
             return;
         }
 

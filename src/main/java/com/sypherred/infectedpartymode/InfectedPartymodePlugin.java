@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
@@ -31,8 +32,6 @@ import com.sypherred.infectedpartymode.ui.InfectedPanel;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
 
-
-
 @PluginDescriptor(
 		name = "Infected Partymode",
 		description = "Party-based Infected / ManHunt game mode",
@@ -41,8 +40,14 @@ import com.sypherred.infectedpartymode.game.GameTimer;
 )
 public class InfectedPartymodePlugin extends Plugin
 {
+	private static final Logger log =
+			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
+
 	@Inject
 	private Client client;
+
+	@Inject
+	private EventBus eventBus;
 
 	@Inject
 	private PartyService partyService;
@@ -91,19 +96,18 @@ public class InfectedPartymodePlugin extends Plugin
 		return configManager.getConfig(InfectedPartymodeConfig.class);
 	}
 
-	private static final Logger log =
-			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
-
 	@Override
 	protected void startUp()
 	{
+		log.info("Infected Partymode starting");
+
+		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
 		overlayManager.add(arenaBorderOverlay);
 		overlayManager.add(gameInfoOverlay);
 
 		BufferedImage icon = null;
-
 		try
 		{
 			icon = ImageIO.read(
@@ -112,7 +116,7 @@ public class InfectedPartymodePlugin extends Plugin
 		}
 		catch (IOException | IllegalArgumentException e)
 		{
-			// Icon couldn't be loaded - Plugin functional
+			log.warn("Could not load plugin icon");
 		}
 
 		navButton = NavigationButton.builder()
@@ -127,7 +131,15 @@ public class InfectedPartymodePlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		log.info("Infected Partymode shutting down");
+
+		if (outOfBoundsManager != null)
+		{
+			eventBus.unregister(outOfBoundsManager);
+		}
+
 		stopGame();
+
 		overlayManager.remove(arenaBorderOverlay);
 		overlayManager.remove(gameInfoOverlay);
 
@@ -142,15 +154,22 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		if (gameState == GameState.RUNNING)
 		{
+			log.warn("Game already running");
 			return;
 		}
 
-		gameState = GameState.RUNNING;
+		if (client.getLocalPlayer() == null)
+		{
+			log.warn("Cannot start game: local player is null");
+			return;
+		}
 
+		log.info("Starting game for {} seconds", durationSeconds);
+
+		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
 		areaManager.generateRandomArea(2);
-
 	}
 
 	public void stopGame()
@@ -160,9 +179,15 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
+		log.info("Stopping game");
+
 		gameState = GameState.IDLE;
 
-		gameTimer.stop();
+		if (gameTimer != null)
+		{
+			gameTimer.stop();
+		}
+
 		areaManager.clearArea();
 	}
 
@@ -176,6 +201,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		if (gameTimer.getRemainingSeconds() <= 0)
 		{
+			log.info("Game timer ended");
 			stopGame();
 		}
 	}
@@ -189,5 +215,4 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
 	}
-
 }

@@ -7,11 +7,17 @@ import net.runelite.api.coords.WorldPoint;
 import javax.inject.Inject;
 import java.util.Random;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Handles creation and validation of the chunk-based arena.
  */
 public class AreaManager
 {
+    private static final Logger log =
+            LoggerFactory.getLogger(AreaManager.class);
+
     private static final int CHUNK_SIZE = 8;
 
     private final Client client;
@@ -35,6 +41,7 @@ public class AreaManager
         Player local = client.getLocalPlayer();
         if (local == null)
         {
+            log.warn("Cannot generate arena: local player is null");
             return null;
         }
 
@@ -47,6 +54,14 @@ public class AreaManager
         int heightChunks = 1 + random.nextInt(maxChunks);
 
         activeArea = new ChunkArea(
+                baseChunkX,
+                baseChunkY,
+                widthChunks,
+                heightChunks
+        );
+
+        log.info(
+                "Generated arena at chunk {}, {} ({}x{} chunks)",
                 baseChunkX,
                 baseChunkY,
                 widthChunks,
@@ -69,6 +84,7 @@ public class AreaManager
     public void clearArea()
     {
         activeArea = null;
+        log.info("Arena cleared");
     }
 
     /**
