@@ -169,7 +169,7 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		areaManager.generateRandomArea(2);
+		areaManager.generatePlayerChunkArea();
 	}
 
 	public void stopGame()
