@@ -14,9 +14,14 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import javax.inject.Inject;
 import java.awt.*;
 
+/**
+ * Arena visualization in Region-Locker style:
+ * - Player chunk remains normal
+ * - All other arena chunks are shaded uniformly
+ */
 public class ArenaChunkShadeOverlay extends Overlay
 {
-    private static final Color SHADE_COLOR = new Color(80, 80, 80, 120);
+    private static final Color SHADE_COLOR = new Color(90, 90, 90, 120);
     private static final int SCENE_SIZE = 104;
 
     private final Client client;
@@ -62,13 +67,13 @@ public class ArenaChunkShadeOverlay extends Overlay
                 int chunkX = wp.getX() >> 3;
                 int chunkY = wp.getY() >> 3;
 
-                // Nur Arena-Chunks
+                // Only shade tiles that belong to the arena
                 if (!area.containsChunk(chunkX, chunkY))
                 {
                     continue;
                 }
 
-                // Spieler-Chunk NICHT abdunkeln
+                // Do NOT shade the player's current chunk
                 if (chunkX == playerChunkX && chunkY == playerChunkY)
                 {
                     continue;
