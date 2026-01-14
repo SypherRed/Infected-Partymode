@@ -15,8 +15,8 @@ import java.awt.*;
 
 /**
  * Arena visualization in Region-Locker style:
- * - Player chunk remains normal
- * - All other arena chunks are shaded uniformly
+ * - Player region remains normal
+ * - All regions NOT allowed by AreaManager are shaded uniformly
  */
 public class ArenaRegionShadeOverlay extends Overlay
 {
@@ -40,18 +40,14 @@ public class ArenaRegionShadeOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D g)
     {
-        ChunkArea area = areaManager.getActiveArea();
-        if (area == null || client.getLocalPlayer() == null)
+        // No active arena → nothing to render
+        if (!areaManager.hasActiveArea() || client.getLocalPlayer() == null)
         {
             return null;
         }
 
         WorldView worldView = client.getTopLevelWorldView();
         int plane = worldView.getPlane();
-
-        WorldPoint playerWp = client.getLocalPlayer().getWorldLocation();
-        int playerChunkX = playerWp.getX() >> 3;
-        int playerChunkY = playerWp.getY() >> 3;
 
         for (int sceneX = 0; sceneX < SCENE_SIZE; sceneX++)
         {
@@ -63,17 +59,8 @@ public class ArenaRegionShadeOverlay extends Overlay
                     continue;
                 }
 
-                int chunkX = wp.getX() >> 3;
-                int chunkY = wp.getY() >> 3;
-
-                // Only shade tiles that belong to the arena
-                if (!area.containsChunk(chunkX, chunkY))
-                {
-                    continue;
-                }
-
-                // Do NOT shade the player's current chunk
-                if (chunkX == playerChunkX && chunkY == playerChunkY)
+                // Shade everything that is NOT inside the allowed region set
+                if (areaManager.isInsideArea(wp))
                 {
                     continue;
                 }
