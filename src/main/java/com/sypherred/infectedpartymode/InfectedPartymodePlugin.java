@@ -25,13 +25,15 @@ import net.runelite.client.ui.ClientToolbar;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
-import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
-import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
-import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
+//import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
+//import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
+//import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
+import com.sypherred.infectedpartymode.overlay.SceneTileDebugOverlay;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
+
 
 @PluginDescriptor(
 		name = "Infected Partymode",
@@ -68,14 +70,17 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private OverlayManager overlayManager;
 
-	@Inject
-	private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
+	//@Inject
+	//private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
+
+	//@Inject
+	//private ArenaDebugOverlay arenaDebugOverlay;
+
+	//@Inject
+	//private GameInfoOverlay gameInfoOverlay;
 
 	@Inject
-	private ArenaDebugOverlay arenaDebugOverlay;
-
-	@Inject
-	private GameInfoOverlay gameInfoOverlay;
+	private SceneTileDebugOverlay sceneTileDebugOverlay;
 
 	@Inject
 	private InfectionManager infectionManager;
@@ -108,9 +113,10 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(arenaDebugOverlay);
+		overlayManager.add(sceneTileDebugOverlay);
+		//overlayManager.add(arenaDebugOverlay);
 		// overlayManager.add(arenaBorderSceneOverlay);
-		overlayManager.add(gameInfoOverlay);
+		//overlayManager.add(gameInfoOverlay);
 
 		BufferedImage icon = null;
 		try
@@ -145,9 +151,10 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(arenaDebugOverlay);
+		overlayManager.add(sceneTileDebugOverlay);
+		//overlayManager.remove(arenaDebugOverlay);
 		// overlayManager.remove(arenaBorderSceneOverlay);
-		overlayManager.remove(gameInfoOverlay);
+		//overlayManager.remove(gameInfoOverlay);
 
 		if (navButton != null)
 		{
