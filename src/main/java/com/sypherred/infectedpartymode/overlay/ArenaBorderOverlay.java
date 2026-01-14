@@ -20,8 +20,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * DEBUG Overlay:
- * - Draws chunk borders (8x8)
- * - Draws a moving debug tile under the player
+ * - Always draws a debug tile under the player
+ * - Draws chunk borders (8x8) when an arena is active
  * - Logs when player leaves / re-enters the arena chunk
  */
 public class ArenaBorderOverlay extends Overlay
@@ -54,15 +54,30 @@ public class ArenaBorderOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
-        ChunkArea area = areaManager.getActiveArea();
         Player local = client.getLocalPlayer();
-
-        if (area == null || local == null)
+        if (local == null)
         {
             return null;
         }
 
         WorldPoint playerWp = local.getWorldLocation();
+
+        /* =========================
+           ALWAYS draw DEBUG TILE under player
+           ========================= */
+        drawTile(
+                graphics,
+                playerWp,
+                DEBUG_TILE_OUTLINE,
+                DEBUG_TILE_FILL
+        );
+
+        ChunkArea area = areaManager.getActiveArea();
+        if (area == null)
+        {
+            // No arena active yet -> debug tile only
+            return null;
+        }
 
         int playerChunkX = playerWp.getX() >> 3;
         int playerChunkY = playerWp.getY() >> 3;
@@ -122,16 +137,6 @@ public class ArenaBorderOverlay extends Overlay
                 drawTile(graphics, wp, BORDER_OUTLINE, BORDER_FILL);
             }
         }
-
-        /* =========================
-           Draw DEBUG TILE under player
-           ========================= */
-        drawTile(
-                graphics,
-                playerWp,
-                DEBUG_TILE_OUTLINE,
-                DEBUG_TILE_FILL
-        );
 
         return null;
     }
