@@ -1,8 +1,8 @@
 package com.sypherred.infectedpartymode;
 
 import com.google.inject.Provides;
+
 import javax.inject.Inject;
-import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -18,25 +18,18 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.ClientToolbar;
-
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
-import com.sypherred.infectedpartymode.overlay.ArenaAreaStateDebugOverlay;
-//import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
-//import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
-import com.sypherred.infectedpartymode.overlay.ArenaFillOverlay;
-//import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
-//import com.sypherred.infectedpartymode.overlay.SceneTileDebugOverlay;
+import com.sypherred.infectedpartymode.overlay.ArenaChunkShadeOverlay;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
-
 
 @PluginDescriptor(
 		name = "Infected Partymode",
@@ -49,23 +42,9 @@ public class InfectedPartymodePlugin extends Plugin
 	private static final Logger log =
 			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
 
-	@Inject
-	private ArenaAreaStateDebugOverlay arenaAreaStateDebugOverlay;
-
-	//@Inject
-	//private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
-
-	//@Inject
-	//private ArenaDebugOverlay arenaDebugOverlay;
-
-	@Inject
-	private ArenaFillOverlay arenaFillOverlay;
-
-	@Inject
-	private AreaManager areaManager;
-
-	@Inject
-	private ClientToolbar clientToolbar;
+    /* =========================
+       Injected core services
+       ========================= */
 
 	@Inject
 	private Client client;
@@ -73,23 +52,11 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private EventBus eventBus;
 
-	//@Inject
-	//private GameInfoOverlay gameInfoOverlay;
-
-	@Inject
-	private InfectedPartymodeConfig config;
-
-	@Inject
-	private InfectionManager infectionManager;
-
-	@Inject
-	private InfectedPanel infectedPanel;
-
-	@Inject
-	private OutOfBoundsManager outOfBoundsManager;
-
 	@Inject
 	private OverlayManager overlayManager;
+
+	@Inject
+	private ClientToolbar clientToolbar;
 
 	@Inject
 	private ScheduledExecutorService executor;
@@ -100,16 +67,54 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private PartySyncManager partySyncManager;
 
+    /* =========================
+       Game logic
+       ========================= */
+
+	@Inject
+	private AreaManager areaManager;
+
+	@Inject
+	private OutOfBoundsManager outOfBoundsManager;
+
+	@Inject
+	private InfectionManager infectionManager;
+
+    /* =========================
+       UI
+       ========================= */
+
+	@Inject
+	private InfectedPanel infectedPanel;
+
+    /* =========================
+       Overlay (FINAL)
+       ========================= */
+
+	@Inject
+	private ArenaChunkShadeOverlay arenaChunkShadeOverlay;
+
+    /* =========================
+       State
+       ========================= */
 
 	private GameState gameState = GameState.IDLE;
 	private GameTimer gameTimer;
 	private NavigationButton navButton;
+
+    /* =========================
+       Config
+       ========================= */
 
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(InfectedPartymodeConfig.class);
 	}
+
+    /* =========================
+       Lifecycle
+       ========================= */
 
 	@Override
 	protected void startUp()
@@ -119,12 +124,10 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(arenaAreaStateDebugOverlay);
-		//overlayManager.add(arenaFillOverlay);
-		//overlayManager.add(arenaDebugOverlay);
-		// overlayManager.add(arenaBorderSceneOverlay);
-		//overlayManager.add(gameInfoOverlay);
+		// === FINAL ARENA OVERLAY (Region-Locker-Style) ===
+		overlayManager.add(arenaChunkShadeOverlay);
 
+		// === Side panel ===
 		BufferedImage icon = null;
 		try
 		{
@@ -134,7 +137,7 @@ public class InfectedPartymodePlugin extends Plugin
 		}
 		catch (IOException | IllegalArgumentException e)
 		{
-			log.warn("Could not load plugin icon");
+			log.warn("Could not load plugin icon", e);
 		}
 
 		navButton = NavigationButton.builder()
@@ -151,18 +154,11 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		log.info("Infected Partymode shutting down");
 
-		if (outOfBoundsManager != null)
-		{
-			eventBus.unregister(outOfBoundsManager);
-		}
+		eventBus.unregister(outOfBoundsManager);
 
 		stopGame();
 
-		overlayManager.remove(arenaAreaStateDebugOverlay);
-		//overlayManager.remove(arenaFillOverlay);
-		//overlayManager.remove(arenaDebugOverlay);
-		// overlayManager.remove(arenaBorderSceneOverlay);
-		//overlayManager.remove(gameInfoOverlay);
+		overlayManager.remove(arenaChunkShadeOverlay);
 
 		if (navButton != null)
 		{
@@ -170,6 +166,10 @@ public class InfectedPartymodePlugin extends Plugin
 			navButton = null;
 		}
 	}
+
+    /* =========================
+       Game control
+       ========================= */
 
 	public void startGame(int durationSeconds)
 	{
@@ -212,6 +212,10 @@ public class InfectedPartymodePlugin extends Plugin
 		areaManager.clearArea();
 	}
 
+    /* =========================
+       Ticks
+       ========================= */
+
 	@Subscribe
 	public void onGameTick(net.runelite.api.events.GameTick tick)
 	{
@@ -226,6 +230,10 @@ public class InfectedPartymodePlugin extends Plugin
 			stopGame();
 		}
 	}
+
+    /* =========================
+       Accessors
+       ========================= */
 
 	public boolean isGameRunning()
 	{
