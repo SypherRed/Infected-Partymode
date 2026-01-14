@@ -26,6 +26,7 @@ import net.runelite.client.ui.ClientToolbar;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
+import com.sypherred.infectedpartymode.overlay.ArenaAreaStateDebugOverlay;
 //import com.sypherred.infectedpartymode.overlay.ArenaBorderSceneOverlay;
 //import com.sypherred.infectedpartymode.overlay.ArenaDebugOverlay;
 import com.sypherred.infectedpartymode.overlay.ArenaFillOverlay;
@@ -47,6 +48,9 @@ public class InfectedPartymodePlugin extends Plugin
 {
 	private static final Logger log =
 			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
+
+	@Inject
+	private ArenaAreaStateDebugOverlay arenaAreaStateDebugOverlay;
 
 	//@Inject
 	//private ArenaBorderSceneOverlay arenaBorderSceneOverlay;
@@ -115,7 +119,8 @@ public class InfectedPartymodePlugin extends Plugin
 		eventBus.register(outOfBoundsManager);
 		gameTimer = new GameTimer(executor);
 
-		overlayManager.add(arenaFillOverlay);
+		overlayManager.add(arenaAreaStateDebugOverlay);
+		//overlayManager.add(arenaFillOverlay);
 		//overlayManager.add(arenaDebugOverlay);
 		// overlayManager.add(arenaBorderSceneOverlay);
 		//overlayManager.add(gameInfoOverlay);
@@ -153,7 +158,8 @@ public class InfectedPartymodePlugin extends Plugin
 
 		stopGame();
 
-		overlayManager.remove(arenaFillOverlay);
+		overlayManager.remove(arenaAreaStateDebugOverlay);
+		//overlayManager.remove(arenaFillOverlay);
 		//overlayManager.remove(arenaDebugOverlay);
 		// overlayManager.remove(arenaBorderSceneOverlay);
 		//overlayManager.remove(gameInfoOverlay);

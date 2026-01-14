@@ -5,13 +5,12 @@ import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Handles creation and validation of the chunk-based arena.
- */
+@Singleton // <<< DAS IST DER ENTSCHEIDENDE FIX
 public class AreaManager
 {
     private static final Logger log =
@@ -26,9 +25,6 @@ public class AreaManager
         this.client = client;
     }
 
-    /**
-     * Uses the CURRENT player chunk as the arena (1x1 chunk).
-     */
     public ChunkArea generatePlayerChunkArea()
     {
         Player local = client.getLocalPlayer();
@@ -43,7 +39,7 @@ public class AreaManager
         int chunkX = wp.getX() >> 3;
         int chunkY = wp.getY() >> 3;
 
-        activeArea = new ChunkArea(chunkX - 1, chunkY - 1, 3, 3);
+        activeArea = new ChunkArea(chunkX, chunkY, 1, 1);
 
         log.info(
                 "Arena set to player chunk {}, {} (1x1)",
@@ -53,10 +49,6 @@ public class AreaManager
 
         return activeArea;
     }
-
-    /* =========================
-       Party / external sync
-       ========================= */
 
     public void setActiveArea(ChunkArea area)
     {
@@ -75,9 +67,6 @@ public class AreaManager
         log.info("Arena cleared");
     }
 
-    /**
-     * Checks if a world point lies inside the active chunk area.
-     */
     public boolean isInsideArea(WorldPoint point)
     {
         if (activeArea == null || point == null)
