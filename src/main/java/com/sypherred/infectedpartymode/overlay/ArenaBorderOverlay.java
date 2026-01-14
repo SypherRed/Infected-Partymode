@@ -14,31 +14,21 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 import javax.inject.Inject;
 import java.awt.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * FINAL DEBUG Overlay (CORRECT LocalPoint math)
+ * Final Arena Overlay
+ * - Displays the active 8x8 chunk arena
+ * - Scene-based rendering (stable)
+ * - World-based logic (correct gameplay)
  */
 public class ArenaBorderOverlay extends Overlay
 {
-    private static final Logger log =
-            LoggerFactory.getLogger(ArenaBorderOverlay.class);
-
-    private static final Color CHUNK_FILL =
-            new Color(255, 0, 0, 30);
-    private static final Color BORDER_OUTLINE =
-            new Color(255, 0, 0, 220);
-
-    private static final Color DEBUG_TILE_OUTLINE =
-            new Color(0, 255, 0, 220);
-    private static final Color DEBUG_TILE_FILL =
-            new Color(0, 255, 0, 120);
+    private static final Color ARENA_FILL =
+            new Color(255, 0, 0, 35);
+    private static final Color ARENA_BORDER =
+            new Color(255, 0, 0, 200);
 
     private final Client client;
     private final AreaManager areaManager;
-
-    private boolean wasInsideArena = true;
 
     @Inject
     public ArenaBorderOverlay(Client client, AreaManager areaManager)
@@ -60,23 +50,43 @@ public class ArenaBorderOverlay extends Overlay
             return null;
         }
 
-        // 1) Beweis: Overlay läuft
-        graphics.setColor(Color.MAGENTA);
-        graphics.setFont(new Font("Arial", Font.BOLD, 16));
-        graphics.drawString("OVERLAY ACTIVE", 20, 40);
-
-        // 2) Beweis: zeichne IMMER die 5x5 Tiles um den Spieler
-        LocalPoint center = local.getLocalLocation();
-        int cx = center.getX();
-        int cy = center.getY();
-
-        for (int dx = -2; dx <= 2; dx++)
+        ChunkArea area = areaManager.getActiveArea();
+        if (area == null)
         {
-            for (int dy = -2; dy <= 2; dy++)
+            return null;
+        }
+
+        int baseX = client.getBaseX();
+        int baseY = client.getBaseY();
+
+        /* =========================
+           Render arena via SCENE
+           ========================= */
+        for (int sceneX = 0; sceneX < 104; sceneX++)
+        {
+            for (int sceneY = 0; sceneY < 104; sceneY++)
             {
+                int worldX = baseX + sceneX;
+                int worldY = baseY + sceneY;
+
+                int chunkX = worldX >> 3;
+                int chunkY = worldY >> 3;
+
+                if (!area.containsChunk(chunkX, chunkY))
+                {
+                    continue;
+                }
+
+                int inChunkX = worldX & 7;
+                int inChunkY = worldY & 7;
+
+                boolean isBorder =
+                        inChunkX == 0 || inChunkX == 7 ||
+                                inChunkY == 0 || inChunkY == 7;
+
                 LocalPoint lp = new LocalPoint(
-                        cx + dx * 128,
-                        cy + dy * 128
+                        sceneX * 128 + 64,
+                        sceneY * 128 + 64
                 );
 
                 Polygon poly = Perspective.getCanvasTilePoly(client, lp);
@@ -85,40 +95,16 @@ public class ArenaBorderOverlay extends Overlay
                     continue;
                 }
 
-                graphics.setColor(new Color(255, 0, 0, 120));
-                graphics.fill(poly);
-                graphics.setColor(Color.RED);
-                graphics.draw(poly);
+                OverlayUtil.renderPolygon(
+                        graphics,
+                        poly,
+                        isBorder ? ARENA_BORDER : null,
+                        ARENA_FILL,
+                        new BasicStroke(2)
+                );
             }
         }
 
         return null;
-    }
-
-    private void drawLocalTile(
-            Graphics2D graphics,
-            LocalPoint lp,
-            Color outline,
-            Color fill
-    )
-    {
-        if (lp == null)
-        {
-            return;
-        }
-
-        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-        if (poly == null)
-        {
-            return;
-        }
-
-        OverlayUtil.renderPolygon(
-                graphics,
-                poly,
-                outline,
-                fill,
-                new BasicStroke(1.5f)
-        );
     }
 }
