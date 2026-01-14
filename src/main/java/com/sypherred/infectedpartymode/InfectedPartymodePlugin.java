@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.runelite.api.Client;
+import net.runelite.api.events.GameTick;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
@@ -61,9 +62,11 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private ScheduledExecutorService executor;
 
+	@SuppressWarnings("unused")
 	@Inject
 	private PartyService partyService;
 
+	@SuppressWarnings("unused")
 	@Inject
 	private PartySyncManager partySyncManager;
 
@@ -77,6 +80,7 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private OutOfBoundsManager outOfBoundsManager;
 
+	@SuppressWarnings("unused")
 	@Inject
 	private InfectionManager infectionManager;
 
@@ -106,6 +110,7 @@ public class InfectedPartymodePlugin extends Plugin
        Config
        ========================= */
 
+	@SuppressWarnings("unused")
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
@@ -121,7 +126,10 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		log.info("Infected Partymode starting");
 
+		// Register event listeners
+		eventBus.register(this);
 		eventBus.register(outOfBoundsManager);
+
 		gameTimer = new GameTimer(executor);
 
 		// === FINAL ARENA OVERLAY (Region-Locker-Style) ===
@@ -154,6 +162,7 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		log.info("Infected Partymode shutting down");
 
+		eventBus.unregister(this);
 		eventBus.unregister(outOfBoundsManager);
 
 		stopGame();
@@ -190,6 +199,7 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
+		// Phase 8 v2.0: region-based arena
 		areaManager.generatePlayerRegionArea(1);
 	}
 
@@ -217,7 +227,7 @@ public class InfectedPartymodePlugin extends Plugin
        ========================= */
 
 	@Subscribe
-	public void onGameTick(net.runelite.api.events.GameTick tick)
+	public void onGameTick(GameTick tick)
 	{
 		if (gameState != GameState.RUNNING)
 		{
