@@ -4,7 +4,6 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.area.ChunkArea;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
-import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
@@ -37,36 +36,33 @@ public class ArenaFillOverlay extends Overlay
     public Dimension render(Graphics2D g)
     {
         ChunkArea area = areaManager.getActiveArea();
-        if (area == null)
+        if (area == null || client.getLocalPlayer() == null)
         {
             return null;
         }
 
-        WorldView worldView = client.getTopLevelWorldView();
+        WorldPoint playerWp = client.getLocalPlayer().getWorldLocation();
+        LocalPoint playerLp = client.getLocalPlayer().getLocalLocation();
 
-        for (int x = 0; x < SCENE_SIZE; x++)
+        for (int dx = -52; dx <= 52; dx++)
         {
-            for (int y = 0; y < SCENE_SIZE; y++)
+            for (int dy = -52; dy <= 52; dy++)
             {
-                WorldPoint wp = WorldPoint.fromScene(worldView, x, y, worldView.getPlane());
-                if (wp == null)
-                {
-                    continue;
-                }
+                int worldX = playerWp.getX() + dx;
+                int worldY = playerWp.getY() + dy;
 
-                int chunkX = wp.getX() >> 3;
-                int chunkY = wp.getY() >> 3;
+                int chunkX = worldX >> 3;
+                int chunkY = worldY >> 3;
 
                 if (!area.containsChunk(chunkX, chunkY))
                 {
                     continue;
                 }
 
-                LocalPoint lp = LocalPoint.fromScene(x, y, worldView);
-                if (lp == null)
-                {
-                    continue;
-                }
+                LocalPoint lp = new LocalPoint(
+                        playerLp.getX() + dx * 128,
+                        playerLp.getY() + dy * 128
+                );
 
                 Polygon poly = Perspective.getCanvasTilePoly(client, lp);
                 if (poly == null)
