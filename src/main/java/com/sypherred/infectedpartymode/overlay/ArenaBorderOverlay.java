@@ -4,7 +4,6 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.area.ChunkArea;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
-import net.runelite.api.Player;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
@@ -14,20 +13,10 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import javax.inject.Inject;
 import java.awt.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-/**
- * DEBUG VERSION:
- * Renders ALL tiles of the active arena as filled 1x1 tiles.
- */
 public class ArenaBorderOverlay extends Overlay
 {
-    private static final Logger log =
-            LoggerFactory.getLogger(ArenaBorderOverlay.class);
-
-    private static final Color TILE_FILL = new Color(255, 0, 0, 90);
-    private static final Color TILE_OUTLINE = new Color(255, 0, 0, 180);
+    private static final Color BORDER_COLOR =
+            new Color(255, 0, 0, 180);
 
     private final Client client;
     private final AreaManager areaManager;
@@ -40,52 +29,50 @@ public class ArenaBorderOverlay extends Overlay
 
         setLayer(OverlayLayer.ABOVE_SCENE);
         setPosition(OverlayPosition.DYNAMIC);
-        setPriority(Overlay.PRIORITY_HIGH);
+        setPriority(PRIORITY_HIGH);
     }
 
     @Override
     public Dimension render(Graphics2D graphics)
     {
         ChunkArea area = areaManager.getActiveArea();
-        Player local = client.getLocalPlayer();
-
-        if (area == null || local == null)
+        if (area == null)
         {
             return null;
         }
 
-        int plane = local.getWorldLocation().getPlane();
+        int plane = client.getLocalPlayer().getWorldLocation().getPlane();
 
-        log.debug("Rendering FULL arena tiles on plane {}", plane);
+        int baseChunkX = area.getBaseChunkX();
+        int baseChunkY = area.getBaseChunkY();
 
-        int startChunkX = area.getBaseChunkX();
-        int startChunkY = area.getBaseChunkY();
-        int endChunkX = startChunkX + area.getWidthChunks() - 1;
-        int endChunkY = startChunkY + area.getHeightChunks() - 1;
-
-        for (int cx = startChunkX; cx <= endChunkX; cx++)
-        {
-            for (int cy = startChunkY; cy <= endChunkY; cy++)
-            {
-                renderFullChunk(graphics, cx, cy, plane);
-            }
-        }
+        // Single chunk (1x1)
+        drawChunkBorder(graphics, baseChunkX, baseChunkY, plane);
 
         return null;
     }
 
-    private void renderFullChunk(Graphics2D graphics, int chunkX, int chunkY, int plane)
+    private void drawChunkBorder(Graphics2D graphics, int chunkX, int chunkY, int plane)
     {
-        int tileStartX = chunkX * 8;
-        int tileStartY = chunkY * 8;
+        int startX = chunkX * 8;
+        int startY = chunkY * 8;
 
         for (int dx = 0; dx < 8; dx++)
         {
             for (int dy = 0; dy < 8; dy++)
             {
+                boolean isBorder =
+                        dx == 0 || dx == 7 ||
+                                dy == 0 || dy == 7;
+
+                if (!isBorder)
+                {
+                    continue;
+                }
+
                 WorldPoint wp = new WorldPoint(
-                        tileStartX + dx,
-                        tileStartY + dy,
+                        startX + dx,
+                        startY + dy,
                         plane
                 );
 
@@ -108,10 +95,7 @@ public class ArenaBorderOverlay extends Overlay
             return;
         }
 
-        graphics.setColor(TILE_FILL);
-        graphics.fill(poly);
-
-        graphics.setColor(TILE_OUTLINE);
+        graphics.setColor(BORDER_COLOR);
         graphics.draw(poly);
     }
 }

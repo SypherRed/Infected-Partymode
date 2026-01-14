@@ -5,7 +5,6 @@ import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 
 import javax.inject.Inject;
-import java.util.Random;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,11 +17,7 @@ public class AreaManager
     private static final Logger log =
             LoggerFactory.getLogger(AreaManager.class);
 
-    private static final int CHUNK_SIZE = 8;
-
     private final Client client;
-    private final Random random = new Random();
-
     private ChunkArea activeArea;
 
     @Inject
@@ -32,11 +27,9 @@ public class AreaManager
     }
 
     /**
-     * Generates a random chunk area around the local player.
-     *
-     * @param maxChunks max width/height in chunks (e.g. 3)
+     * Uses the CURRENT player chunk as the arena (1x1 chunk).
      */
-    public ChunkArea generateRandomArea(int maxChunks)
+    public ChunkArea generatePlayerChunkArea()
     {
         Player local = client.getLocalPlayer();
         if (local == null)
@@ -47,38 +40,33 @@ public class AreaManager
 
         WorldPoint wp = local.getWorldLocation();
 
-        int baseChunkX = wp.getX() >> 3;
-        int baseChunkY = wp.getY() >> 3;
+        int chunkX = wp.getX() >> 3;
+        int chunkY = wp.getY() >> 3;
 
-        int widthChunks = 1 + random.nextInt(maxChunks);
-        int heightChunks = 1 + random.nextInt(maxChunks);
-
-        activeArea = new ChunkArea(
-                baseChunkX,
-                baseChunkY,
-                widthChunks,
-                heightChunks
-        );
+        activeArea = new ChunkArea(chunkX, chunkY, 1, 1);
 
         log.info(
-                "Generated arena at chunk {}, {} ({}x{} chunks)",
-                baseChunkX,
-                baseChunkY,
-                widthChunks,
-                heightChunks
+                "Arena set to player chunk {}, {} (1x1)",
+                chunkX,
+                chunkY
         );
 
         return activeArea;
+    }
+
+    /* =========================
+       Party / external sync
+       ========================= */
+
+    public void setActiveArea(ChunkArea area)
+    {
+        this.activeArea = area;
+        log.info("Active arena set externally");
     }
 
     public ChunkArea getActiveArea()
     {
         return activeArea;
-    }
-
-    public void setActiveArea(ChunkArea area)
-    {
-        this.activeArea = area;
     }
 
     public void clearArea()
