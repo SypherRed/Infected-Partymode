@@ -25,6 +25,7 @@ public class PartySyncManager
 
     private final PartyService partyService;
     private final AreaManager areaManager;
+    private final HostAuthorityManager hostAuthorityManager;
 
     private final GameSession gameSession = new GameSession();
     private final Map<String, PlayerState> playerStates = new HashMap<>();
@@ -32,10 +33,15 @@ public class PartySyncManager
     private boolean inParty = false;
 
     @Inject
-    public PartySyncManager(PartyService partyService, AreaManager areaManager)
+    public PartySyncManager(
+            PartyService partyService,
+            AreaManager areaManager,
+            HostAuthorityManager hostAuthorityManager
+    )
     {
         this.partyService = partyService;
         this.areaManager = areaManager;
+        this.hostAuthorityManager = hostAuthorityManager;
     }
 
     /* =========================
@@ -46,6 +52,12 @@ public class PartySyncManager
     public void onPartyChanged(PartyChanged e)
     {
         inParty = e.getPartyId() != null;
+
+        if (!inParty)
+        {
+            hostAuthorityManager.reset();
+        }
+
         log.debug("Party changed: inParty={}", inParty);
     }
 
@@ -74,9 +86,6 @@ public class PartySyncManager
        Area (Region) sync
        ========================= */
 
-    /**
-     * Sends the currently allowed region IDs to the party.
-     */
     public void sendArea()
     {
         Set<Integer> regions = areaManager.getAllowedRegions();
@@ -102,6 +111,15 @@ public class PartySyncManager
         gameSession.start(start, durationSeconds);
 
         sendPartyString("TIMER|" + start + "|" + durationSeconds);
+    }
+
+    /* =========================
+       Host sync
+       ========================= */
+
+    public void sendHostClaim(long memberId)
+    {
+        sendPartyString("HOST|" + memberId);
     }
 
     /* =========================
@@ -139,7 +157,6 @@ public class PartySyncManager
                 break;
 
             case "AREA":
-                // AREA|regionId,regionId,regionId
                 if (parts.length >= 2)
                 {
                     Set<Integer> regions = parseRegionSet(parts[1]);
@@ -160,6 +177,18 @@ public class PartySyncManager
                     if (start != null && dur != null)
                     {
                         gameSession.start(start, dur);
+                    }
+                }
+                break;
+
+            case "HOST":
+                if (parts.length >= 2)
+                {
+                    Long memberId = tryParseLong(parts[1]);
+                    if (memberId != null)
+                    {
+                        hostAuthorityManager.onHostClaim(memberId);
+                        log.info("Host claimed by memberId={}", memberId);
                     }
                 }
                 break;

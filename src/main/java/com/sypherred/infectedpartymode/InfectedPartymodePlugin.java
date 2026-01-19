@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.runelite.api.Client;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
@@ -28,6 +29,7 @@ import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
 import com.sypherred.infectedpartymode.rules.InfectionManager;
 import com.sypherred.infectedpartymode.ui.InfectedPanel;
@@ -62,13 +64,14 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private ScheduledExecutorService executor;
 
-	@SuppressWarnings("unused")
 	@Inject
 	private PartyService partyService;
 
-	@SuppressWarnings("unused")
 	@Inject
 	private PartySyncManager partySyncManager;
+
+	@Inject
+	private HostAuthorityManager hostAuthorityManager;
 
     /* =========================
        Game logic
@@ -80,7 +83,6 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private OutOfBoundsManager outOfBoundsManager;
 
-	@SuppressWarnings("unused")
 	@Inject
 	private InfectionManager infectionManager;
 
@@ -92,7 +94,7 @@ public class InfectedPartymodePlugin extends Plugin
 	private InfectedPanel infectedPanel;
 
     /* =========================
-       Overlay (FINAL)
+       Overlay
        ========================= */
 
 	@Inject
@@ -110,7 +112,6 @@ public class InfectedPartymodePlugin extends Plugin
        Config
        ========================= */
 
-	@SuppressWarnings("unused")
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
 	{
@@ -126,15 +127,12 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		log.info("Infected Partymode starting");
 
-		// Register event listeners
 		eventBus.register(outOfBoundsManager);
 
 		gameTimer = new GameTimer(executor);
 
-		// === FINAL ARENA OVERLAY (Region-Locker-Style) ===
 		overlayManager.add(arenaRegionShadeOverlay);
 
-		// === Side panel ===
 		BufferedImage icon = null;
 		try
 		{
@@ -175,21 +173,43 @@ public class InfectedPartymodePlugin extends Plugin
 	}
 
     /* =========================
-       Game control
+       Game control (HOST-ONLY)
        ========================= */
 
 	public void startGame(int durationSeconds)
 	{
 		if (gameState == GameState.RUNNING)
 		{
-			log.warn("Game already running");
 			return;
 		}
 
 		if (client.getLocalPlayer() == null)
 		{
-			log.warn("Cannot start game: local player is null");
 			return;
+		}
+
+		// Host enforcement
+		if (!hostAuthorityManager.isHost())
+		{
+			client.addChatMessage(
+					ChatMessageType.GAMEMESSAGE,
+					"",
+					"Only the host can start the game.",
+					null
+			);
+			return;
+		}
+
+		// First host claims authority (party-safe)
+		if (hostAuthorityManager.getHostMemberId() == null)
+		{
+			hostAuthorityManager.claimHost();
+			if (partyService.isInParty())
+			{
+				partySyncManager.sendHostClaim(
+						partyService.getLocalMember().getMemberId()
+				);
+			}
 		}
 
 		log.info("Starting game for {} seconds", durationSeconds);
@@ -207,6 +227,17 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
+		if (!hostAuthorityManager.isHost())
+		{
+			client.addChatMessage(
+					ChatMessageType.GAMEMESSAGE,
+					"",
+					"Only the host can stop the game.",
+					null
+			);
+			return;
+		}
+
 		log.info("Stopping game");
 
 		gameState = GameState.IDLE;
@@ -217,6 +248,7 @@ public class InfectedPartymodePlugin extends Plugin
 		}
 
 		areaManager.clearArea();
+		hostAuthorityManager.reset();
 	}
 
     /* =========================
@@ -226,7 +258,6 @@ public class InfectedPartymodePlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-
 		if (gameState != GameState.RUNNING)
 		{
 			return;
