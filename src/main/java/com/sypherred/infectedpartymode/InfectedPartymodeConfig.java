@@ -14,12 +14,12 @@ public interface InfectedPartymodeConfig extends Config
     @ConfigItem(
             keyName = "arenaMode",
             name = "Arena mode",
-            description = "How the arena regions are selected",
+            description = "Select how the arena is generated",
             position = 0
     )
     default ArenaMode arenaMode()
     {
-        return ArenaMode.CURRENT_PLUS_N;
+        return ArenaMode.NONE;
     }
 
     @ConfigItem(
@@ -37,23 +37,11 @@ public interface InfectedPartymodeConfig extends Config
     @ConfigItem(
             keyName = "presetArena",
             name = "Preset arena",
-            description = "Fixed preset arena (used when Arena mode = PRESET)",
+            description = "Used when Arena mode = PRESET",
             position = 2
     )
     default PresetArena presetArena()
     {
         return PresetArena.LUMBRIDGE;
-    }
-
-    @ConfigItem(
-            keyName = "randomRadius",
-            name = "Random radius (regions)",
-            description = "Max distance from current region for random start",
-            position = 3
-    )
-    @Range(min = 1, max = 20)
-    default int randomRadius()
-    {
-        return 5;
     }
 }

@@ -25,6 +25,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
+import com.sypherred.infectedpartymode.area.ArenaMode;
 import com.sypherred.infectedpartymode.area.AreaRandomUtil;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
@@ -192,7 +193,17 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		// Host enforcement
+		if (config.arenaMode() == ArenaMode.NONE)
+		{
+			client.addChatMessage(
+					ChatMessageType.GAMEMESSAGE,
+					"",
+					"Please select an arena mode first.",
+					null
+			);
+			return;
+		}
+
 		if (!hostAuthorityManager.isHost())
 		{
 			client.addChatMessage(
@@ -204,7 +215,6 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		// First host claims authority (party-safe)
 		if (hostAuthorityManager.getHostMemberId() == null)
 		{
 			hostAuthorityManager.claimHost();
@@ -215,9 +225,6 @@ public class InfectedPartymodePlugin extends Plugin
 				);
 			}
 		}
-
-		int regionCount = config.regionCount();
-		log.info("Starting game for {} seconds with {} regions", durationSeconds, regionCount);
 
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
@@ -231,15 +238,7 @@ public class InfectedPartymodePlugin extends Plugin
 				break;
 
 			case RANDOM:
-				int radius = config.randomRadius();
-				int randomStartRegion = AreaRandomUtil.randomRegionNearPlayer(
-						client,
-						radius
-				);
-				areaManager.generatePlayerRegionAreaFromRegion(
-						randomStartRegion,
-						config.regionCount()
-				);
+				generateRandomArena();
 				break;
 
 			case CURRENT_PLUS_N:
@@ -249,7 +248,40 @@ public class InfectedPartymodePlugin extends Plugin
 				);
 				break;
 		}
+	}
 
+	public void rerollRandomArena()
+	{
+		if (gameState != GameState.IDLE)
+		{
+			return;
+		}
+
+		if (!hostAuthorityManager.isHost())
+		{
+			return;
+		}
+
+		if (config.arenaMode() != ArenaMode.RANDOM)
+		{
+			return;
+		}
+
+		generateRandomArena();
+	}
+
+	private void generateRandomArena()
+	{
+		int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
+		areaManager.generatePlayerRegionAreaFromRegion(
+				startRegion,
+				config.regionCount()
+		);
+
+		if (partyService.isInParty())
+		{
+			partySyncManager.sendArea();
+		}
 	}
 
 	public void stopGame()

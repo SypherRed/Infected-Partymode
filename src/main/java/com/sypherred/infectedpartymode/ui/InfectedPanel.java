@@ -48,6 +48,13 @@ public class InfectedPanel extends PluginPanel
             plugin.startGame(600);
         });
 
+        JButton rerollArena = new JButton("🎲 Reroll Arena");
+        rerollArena.addActionListener(e ->
+        {
+            log.info("Reroll Arena button clicked");
+            plugin.rerollRandomArena();
+        });
+
         JButton stopGame = new JButton("Stop Game");
         stopGame.addActionListener(e ->
         {
@@ -56,6 +63,7 @@ public class InfectedPanel extends PluginPanel
         });
 
         panel.add(startGame);
+        panel.add(rerollArena);
         panel.add(stopGame);
 
         return panel;

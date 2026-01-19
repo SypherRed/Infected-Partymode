@@ -11,7 +11,7 @@ public final class AreaRandomUtil
 
     private AreaRandomUtil() {}
 
-    public static int randomRegionNearPlayer(Client client, int radius)
+    public static int randomRegionAnywhere(Client client)
     {
         Player p = client.getLocalPlayer();
         if (p == null)
@@ -23,8 +23,8 @@ public final class AreaRandomUtil
         int rx = base >> 8;
         int ry = base & 0xFF;
 
-        int dx = RNG.nextInt(radius * 2 + 1) - radius;
-        int dy = RNG.nextInt(radius * 2 + 1) - radius;
+        int dx = RNG.nextInt(20) - 10;
+        int dy = RNG.nextInt(20) - 10;
 
         return ((rx + dx) << 8) | (ry + dy);
     }
