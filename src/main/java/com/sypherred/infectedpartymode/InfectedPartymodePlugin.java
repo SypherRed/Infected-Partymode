@@ -73,6 +73,9 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private HostAuthorityManager hostAuthorityManager;
 
+	@Inject
+	private InfectedPartymodeConfig config;
+
     /* =========================
        Game logic
        ========================= */
@@ -212,12 +215,13 @@ public class InfectedPartymodePlugin extends Plugin
 			}
 		}
 
-		log.info("Starting game for {} seconds", durationSeconds);
+		int regionCount = config.regionCount();
+		log.info("Starting game for {} seconds with {} regions", durationSeconds, regionCount);
 
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		areaManager.generatePlayerRegionArea(1);
+		areaManager.generatePlayerRegionArea(regionCount);
 	}
 
 	public void stopGame()
