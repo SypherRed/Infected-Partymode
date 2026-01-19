@@ -106,6 +106,45 @@ public class AreaManager
         );
     }
 
+    public void generatePlayerRegionAreaFromRegion(int startRegionId, int regionCount)
+    {
+        allowedRegions.clear();
+        allowedRegions.add(startRegionId);
+
+        Queue<Integer> frontier = new LinkedList<>();
+        frontier.add(startRegionId);
+
+        while (!frontier.isEmpty() && allowedRegions.size() < regionCount)
+        {
+            int regionId = frontier.poll();
+
+            int rx = regionId >> 8;
+            int ry = regionId & 0xFF;
+
+            int[][] neighbors = {
+                    {rx + 1, ry},
+                    {rx - 1, ry},
+                    {rx, ry + 1},
+                    {rx, ry - 1}
+            };
+
+            for (int[] n : neighbors)
+            {
+                int neighborId = (n[0] << 8) | n[1];
+
+                if (allowedRegions.add(neighborId))
+                {
+                    frontier.add(neighborId);
+                    if (allowedRegions.size() >= regionCount)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+
     /* =========================
        Arena state
        ========================= */

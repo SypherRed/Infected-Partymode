@@ -25,7 +25,7 @@ public interface InfectedPartymodeConfig extends Config
     @ConfigItem(
             keyName = "regionCount",
             name = "Region count",
-            description = "Number of connected regions starting from the current player region",
+            description = "Number of connected regions",
             position = 1
     )
     @Range(min = 1, max = 10)
@@ -43,5 +43,17 @@ public interface InfectedPartymodeConfig extends Config
     default PresetArena presetArena()
     {
         return PresetArena.LUMBRIDGE;
+    }
+
+    @ConfigItem(
+            keyName = "randomRadius",
+            name = "Random radius (regions)",
+            description = "Max distance from current region for random start",
+            position = 3
+    )
+    @Range(min = 1, max = 20)
+    default int randomRadius()
+    {
+        return 5;
     }
 }

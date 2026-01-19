@@ -25,6 +25,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import com.sypherred.infectedpartymode.area.AreaManager;
+import com.sypherred.infectedpartymode.area.AreaRandomUtil;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
@@ -229,11 +230,26 @@ public class InfectedPartymodePlugin extends Plugin
 				);
 				break;
 
+			case RANDOM:
+				int radius = config.randomRadius();
+				int randomStartRegion = AreaRandomUtil.randomRegionNearPlayer(
+						client,
+						radius
+				);
+				areaManager.generatePlayerRegionAreaFromRegion(
+						randomStartRegion,
+						config.regionCount()
+				);
+				break;
+
 			case CURRENT_PLUS_N:
 			default:
-				areaManager.generatePlayerRegionArea(regionCount);
+				areaManager.generatePlayerRegionArea(
+						config.regionCount()
+				);
 				break;
 		}
+
 	}
 
 	public void stopGame()
