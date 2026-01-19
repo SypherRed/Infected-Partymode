@@ -221,7 +221,19 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		areaManager.generatePlayerRegionArea(regionCount);
+		switch (config.arenaMode())
+		{
+			case PRESET:
+				areaManager.setActiveRegions(
+						config.presetArena().getRegions()
+				);
+				break;
+
+			case CURRENT_PLUS_N:
+			default:
+				areaManager.generatePlayerRegionArea(regionCount);
+				break;
+		}
 	}
 
 	public void stopGame()
