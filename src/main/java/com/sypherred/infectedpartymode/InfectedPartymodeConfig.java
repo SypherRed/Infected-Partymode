@@ -42,6 +42,17 @@ public interface InfectedPartymodeConfig extends Config
     )
     default PresetArena presetArena()
     {
-        return PresetArena.LUMBRIDGE;
+        return PresetArena.NONE;
+    }
+
+    @ConfigItem(
+            keyName = "manualRegions",
+            name = "Manual regions",
+            description = "Comma-separated region IDs (used when Arena mode = MANUAL)",
+            position = 3
+    )
+    default String manualRegions()
+    {
+        return "";
     }
 }

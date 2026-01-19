@@ -5,5 +5,6 @@ public enum ArenaMode
     NONE,
     CURRENT_PLUS_N,
     PRESET,
-    RANDOM
+    RANDOM,
+    MANUAL
 }

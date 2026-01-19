@@ -27,6 +27,8 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.area.ArenaMode;
 import com.sypherred.infectedpartymode.area.AreaRandomUtil;
+import com.sypherred.infectedpartymode.area.ArenaMode;
+import com.sypherred.infectedpartymode.area.ManualRegionParser;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
@@ -251,6 +253,29 @@ public class InfectedPartymodePlugin extends Plugin
 				generateRandomArena();
 				break;
 
+			case MANUAL:
+				var manual = ManualRegionParser.parse(
+						config.manualRegions()
+				);
+
+				if (manual.isEmpty())
+				{
+					client.addChatMessage(
+							ChatMessageType.GAMEMESSAGE,
+							"",
+							"Please enter valid region IDs for manual arena.",
+							null
+					);
+					return;
+				}
+
+				areaManager.setActiveRegions(manual);
+				if (partyService.isInParty())
+				{
+					partySyncManager.sendArea();
+				}
+				break;
+
 			case CURRENT_PLUS_N:
 			default:
 				areaManager.generatePlayerRegionArea(
@@ -258,6 +283,7 @@ public class InfectedPartymodePlugin extends Plugin
 				);
 				break;
 		}
+
 	}
 
 	public void rerollRandomArena()
