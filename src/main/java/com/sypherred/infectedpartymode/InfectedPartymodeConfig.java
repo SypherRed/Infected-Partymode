@@ -13,10 +13,11 @@ public interface InfectedPartymodeConfig extends Config
 {
     @ConfigItem(
             keyName = "arenaMode",
-            name = "Arena mode",
-            description = "Select how the arena is generated",
+            name = "Arena Mode",
+            description = "How the arena is generated before the game starts",
             position = 0
     )
+
     default ArenaMode arenaMode()
     {
         return ArenaMode.NONE;
@@ -24,10 +25,11 @@ public interface InfectedPartymodeConfig extends Config
 
     @ConfigItem(
             keyName = "regionCount",
-            name = "Region count",
-            description = "Number of connected regions",
+            name = "Arena Size (Regions)",
+            description = "Number of connected regions used for the arena",
             position = 1
     )
+
     @Range(min = 1, max = 10)
     default int regionCount()
     {
@@ -36,10 +38,11 @@ public interface InfectedPartymodeConfig extends Config
 
     @ConfigItem(
             keyName = "presetArena",
-            name = "Preset arena",
-            description = "Used when Arena mode = PRESET",
+            name = "Preset Arena",
+            description = "Select a predefined arena (used in Preset mode)",
             position = 2
     )
+
     default PresetArena presetArena()
     {
         return PresetArena.NONE;
@@ -47,10 +50,11 @@ public interface InfectedPartymodeConfig extends Config
 
     @ConfigItem(
             keyName = "manualRegions",
-            name = "Manual regions",
-            description = "Comma-separated region IDs (used when Arena mode = MANUAL)",
+            name = "Manual Region IDs",
+            description = "Comma-separated region IDs (used in Manual mode)",
             position = 3
     )
+
     default String manualRegions()
     {
         return "";

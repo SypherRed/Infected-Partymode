@@ -3,6 +3,7 @@ package com.sypherred.infectedpartymode.ui;
 import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.model.PlayerState;
+import com.sypherred.infectedpartymode.area.ArenaMode;
 
 import net.runelite.client.ui.PluginPanel;
 
@@ -10,15 +11,14 @@ import javax.inject.Inject;
 import javax.swing.*;
 import java.awt.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class InfectedPanel extends PluginPanel
 {
-    private static final Logger log = LoggerFactory.getLogger(InfectedPanel.class);
-
     private final InfectedPartymodePlugin plugin;
     private final PartySyncManager partySyncManager;
+
+    private JButton startGame;
+    private JButton rerollArena;
+    private JButton stopGame;
 
     private final JPanel playerListPanel = new JPanel();
 
@@ -31,49 +31,62 @@ public class InfectedPanel extends PluginPanel
         this.plugin = plugin;
         this.partySyncManager = partySyncManager;
 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(0, 8));
 
         add(buildControlPanel(), BorderLayout.NORTH);
         add(buildPlayerList(), BorderLayout.CENTER);
+
+        refreshControls();
     }
+
+    /* =========================
+       Control Panel
+       ========================= */
 
     private JPanel buildControlPanel()
     {
-        JPanel panel = new JPanel(new GridLayout(0, 1, 5, 5));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder("Game Control"));
 
-        JButton startGame = new JButton("Start Game (10 min)");
-        startGame.addActionListener(e ->
-        {
-            log.info("Start Game button clicked");
-            plugin.startGame(600);
-        });
+        startGame = new JButton("▶ Start Game (10 min)");
+        startGame.setAlignmentX(Component.CENTER_ALIGNMENT);
+        startGame.setToolTipText("Start the game with the selected arena settings");
+        startGame.addActionListener(e -> plugin.startGame(600));
 
-        JButton rerollArena = new JButton("🎲 Reroll Arena");
-        rerollArena.addActionListener(e ->
-        {
-            log.info("Reroll Arena button clicked");
-            plugin.rerollRandomArena();
-        });
+        rerollArena = new JButton("🎲 Reroll Arena");
+        rerollArena.setAlignmentX(Component.CENTER_ALIGNMENT);
+        rerollArena.setToolTipText("Generate a new random arena (Random mode only)");
+        rerollArena.addActionListener(e -> plugin.rerollRandomArena());
 
-        JButton stopGame = new JButton("Stop Game");
-        stopGame.addActionListener(e ->
-        {
-            log.info("Stop Game button clicked");
-            plugin.stopGame();
-        });
+        stopGame = new JButton("■ Stop Game");
+        stopGame.setAlignmentX(Component.CENTER_ALIGNMENT);
+        stopGame.setToolTipText("Stop the running game");
+        stopGame.addActionListener(e -> plugin.stopGame());
 
         panel.add(startGame);
+        panel.add(Box.createVerticalStrut(6));
         panel.add(rerollArena);
+        panel.add(Box.createVerticalStrut(6));
         panel.add(stopGame);
 
         return panel;
     }
 
+    /* =========================
+       Player List
+       ========================= */
+
     private JScrollPane buildPlayerList()
     {
         playerListPanel.setLayout(new BoxLayout(playerListPanel, BoxLayout.Y_AXIS));
+        playerListPanel.setBorder(BorderFactory.createTitledBorder("Players"));
+
         refreshPlayerList();
-        return new JScrollPane(playerListPanel);
+
+        JScrollPane scrollPane = new JScrollPane(playerListPanel);
+        scrollPane.setBorder(null);
+        return scrollPane;
     }
 
     public void refreshPlayerList()
@@ -87,5 +100,19 @@ public class InfectedPanel extends PluginPanel
 
         playerListPanel.revalidate();
         playerListPanel.repaint();
+    }
+
+    /* =========================
+       State Reflection
+       ========================= */
+
+    public void refreshControls()
+    {
+        boolean running = plugin.isGameRunning();
+        ArenaMode mode = plugin.getArenaMode();
+
+        startGame.setEnabled(!running && mode != ArenaMode.NONE);
+        rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM);
+        stopGame.setEnabled(running);
     }
 }

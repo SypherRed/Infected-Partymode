@@ -20,7 +20,7 @@ import java.awt.*;
  */
 public class ArenaRegionShadeOverlay extends Overlay
 {
-    private static final Color SHADE_COLOR = new Color(90, 90, 90, 120);
+    private static final Color SHADE_COLOR = new Color(160, 40, 40, 110);
     private static final int SCENE_SIZE = 104;
 
     private final Client client;

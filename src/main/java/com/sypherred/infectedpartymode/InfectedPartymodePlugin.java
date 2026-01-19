@@ -27,7 +27,6 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.area.ArenaMode;
 import com.sypherred.infectedpartymode.area.AreaRandomUtil;
-import com.sypherred.infectedpartymode.area.ArenaMode;
 import com.sypherred.infectedpartymode.area.ManualRegionParser;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
@@ -318,6 +317,11 @@ public class InfectedPartymodePlugin extends Plugin
 		{
 			partySyncManager.sendArea();
 		}
+	}
+
+	public ArenaMode getArenaMode()
+	{
+		return config.arenaMode();
 	}
 
 	public void stopGame()
