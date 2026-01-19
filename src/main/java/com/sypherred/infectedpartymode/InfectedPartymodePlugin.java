@@ -232,6 +232,16 @@ public class InfectedPartymodePlugin extends Plugin
 		switch (config.arenaMode())
 		{
 			case PRESET:
+				if (!config.presetArena().isValid())
+				{
+					client.addChatMessage(
+							ChatMessageType.GAMEMESSAGE,
+							"",
+							"Please select a preset arena first.",
+							null
+					);
+					return;
+				}
 				areaManager.setActiveRegions(
 						config.presetArena().getRegions()
 				);

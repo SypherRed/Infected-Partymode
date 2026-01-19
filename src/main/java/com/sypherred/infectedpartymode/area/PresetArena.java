@@ -4,16 +4,18 @@ import java.util.Set;
 
 public enum PresetArena
 {
+    NONE(Set.of()),
+
     LUMBRIDGE(Set.of(
-            12850 // Lumbridge region
+            12850
     )),
 
     VARROCK(Set.of(
-            12853 // Varrock west/east core region
+            12853
     )),
 
     FALADOR(Set.of(
-            11828 // Falador core region
+            11828
     ));
 
     private final Set<Integer> regions;
@@ -26,5 +28,10 @@ public enum PresetArena
     public Set<Integer> getRegions()
     {
         return regions;
+    }
+
+    public boolean isValid()
+    {
+        return this != NONE && !regions.isEmpty();
     }
 }
