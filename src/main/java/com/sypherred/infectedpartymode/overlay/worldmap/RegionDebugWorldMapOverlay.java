@@ -17,10 +17,11 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 
 public class RegionDebugWorldMapOverlay extends Overlay
 {
-    private static final Color TILE_COLOR = new Color(255, 0, 0, 50);
-    private static final Color GRID_COLOR = new Color(255, 0, 0, 140);
-    private static final int REGION_SIZE = 1 << 6; // 64 tiles
-    private static final int REGION_TRUNCATE = ~0x3F;
+    private static final Color FILL_COLOR = new Color(255, 0, 0, 45);
+    private static final Color GRID_COLOR = new Color(255, 0, 0, 150);
+
+    private static final int REGION_SIZE = 1 << 6;      // 64 tiles
+    private static final int REGION_TRUNCATE = ~0x3F;   // snap to region
     private static final int LABEL_PADDING = 4;
 
     private final Client client;
@@ -54,17 +55,19 @@ public class RegionDebugWorldMapOverlay extends Overlay
         WorldMap worldMap = client.getWorldMap();
         float pixelsPerTile = worldMap.getWorldMapZoom();
         Rectangle worldMapRect = map.getBounds();
+
         graphics.setClip(worldMapRect);
 
-        int widthInTiles = (int) Math.ceil(worldMapRect.getWidth() / pixelsPerTile);
+        int widthInTiles  = (int) Math.ceil(worldMapRect.getWidth()  / pixelsPerTile);
         int heightInTiles = (int) Math.ceil(worldMapRect.getHeight() / pixelsPerTile);
 
-        Point mapCenter = worldMap.getWorldMapPosition();
+        Point center = worldMap.getWorldMapPosition();
 
-        int xRegionMin = (mapCenter.getX() - widthInTiles / 2) & REGION_TRUNCATE;
-        int xRegionMax = ((mapCenter.getX() + widthInTiles / 2) & REGION_TRUNCATE) + REGION_SIZE;
-        int yRegionMin = (mapCenter.getY() - heightInTiles / 2) & REGION_TRUNCATE;
-        int yRegionMax = ((mapCenter.getY() + heightInTiles / 2) & REGION_TRUNCATE) + REGION_SIZE;
+        // snap visible area to region grid (CRITICAL)
+        int xRegionMin = (center.getX() - widthInTiles  / 2) & REGION_TRUNCATE;
+        int xRegionMax = ((center.getX() + widthInTiles  / 2) & REGION_TRUNCATE) + REGION_SIZE;
+        int yRegionMin = (center.getY() - heightInTiles / 2) & REGION_TRUNCATE;
+        int yRegionMax = ((center.getY() + heightInTiles / 2) & REGION_TRUNCATE) + REGION_SIZE;
 
         int regionPixelSize = (int) Math.ceil(REGION_SIZE * pixelsPerTile);
 
@@ -72,31 +75,33 @@ public class RegionDebugWorldMapOverlay extends Overlay
         {
             for (int y = yRegionMin; y < yRegionMax; y += REGION_SIZE)
             {
-                int xOffsetTiles = x + widthInTiles / 2 - mapCenter.getX();
-                int yOffsetTiles = mapCenter.getY() - y;
+                // tile offsets (IDENTICAL to region-locker)
+                int xTileOffset = x + widthInTiles / 2 - center.getX();
+                int yTileOffset = -( (center.getY() - heightInTiles / 2) - y );
 
-                int xPos = (int) (xOffsetTiles * pixelsPerTile) + worldMapRect.x;
-                int yPos = (int) (yOffsetTiles * pixelsPerTile) + worldMapRect.y - regionPixelSize;
+                int xPos = (int) (xTileOffset * pixelsPerTile) + worldMapRect.x;
+                int yPos = worldMapRect.height - (int) (yTileOffset * pixelsPerTile) + worldMapRect.y;
+                yPos -= regionPixelSize; // critical Y-fix
 
                 int regionId = ((x >> 6) << 8) | (y >> 6);
                 String text = String.valueOf(regionId);
 
-                Rectangle regionRect = new Rectangle(xPos, yPos, regionPixelSize, regionPixelSize);
+                Rectangle rect = new Rectangle(xPos, yPos, regionPixelSize, regionPixelSize);
 
-                graphics.setColor(TILE_COLOR);
-                graphics.fillRect(xPos, yPos, regionPixelSize, regionPixelSize);
+                graphics.setColor(FILL_COLOR);
+                graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
 
                 graphics.setColor(GRID_COLOR);
-                graphics.drawRect(xPos, yPos, regionPixelSize, regionPixelSize);
+                graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
 
                 FontMetrics fm = graphics.getFontMetrics();
-                Rectangle2D bounds = fm.getStringBounds(text, graphics);
+                Rectangle2D tb = fm.getStringBounds(text, graphics);
 
                 graphics.setColor(Color.WHITE);
                 graphics.drawString(
                         text,
-                        xPos + LABEL_PADDING,
-                        yPos + LABEL_PADDING + (int) bounds.getHeight()
+                        rect.x + LABEL_PADDING,
+                        rect.y + LABEL_PADDING + (int) tb.getHeight()
                 );
             }
         }
