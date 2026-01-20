@@ -91,6 +91,7 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject
 	private OutOfBoundsManager outOfBoundsManager;
 
+	@SuppressWarnings("unused")
 	@Inject
 	private InfectionManager infectionManager;
 
@@ -148,6 +149,8 @@ public class InfectedPartymodePlugin extends Plugin
 		overlayManager.add(arenaRegionShadeOverlay);
 		overlayManager.add(gameInfoOverlay);
 		overlayManager.add(regionDebugWorldMapOverlay);
+
+		updateArenaPreview();
 
 		BufferedImage icon = null;
 		try
@@ -246,7 +249,7 @@ public class InfectedPartymodePlugin extends Plugin
 				break;
 
 			case RANDOM:
-				generateRandomArena();
+				generateRandomArena(false);
 				break;
 
 			case MANUAL:
@@ -296,10 +299,10 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		generateRandomArena();
+		generateRandomArena(false);
 	}
 
-	private void generateRandomArena()
+	private void generateRandomArena(boolean preview)
 	{
 		int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
 		areaManager.generatePlayerRegionAreaFromRegion(
@@ -307,12 +310,54 @@ public class InfectedPartymodePlugin extends Plugin
 				config.regionCount()
 		);
 
-		if (partyService.isInParty())
+		if (!preview && partyService.isInParty())
 		{
 			partySyncManager.sendArea();
+			pluginMessage("Random arena generated.");
+		}
+	}
+
+	public void updateArenaPreview()
+	{
+		if (isGameRunning())
+		{
+			return;
 		}
 
-		pluginMessage("Random arena generated.");
+		switch (config.arenaMode())
+		{
+			case PRESET:
+				if (config.presetArena().isValid())
+				{
+					areaManager.setActiveRegions(
+							config.presetArena().getRegions()
+					);
+				}
+				break;
+
+			case RANDOM:
+				generateRandomArena(true);
+				break;
+
+			case MANUAL:
+				var manual = ManualRegionParser.parse(config.manualRegions());
+				if (!manual.isEmpty())
+				{
+					areaManager.setActiveRegions(manual);
+				}
+				break;
+
+			case CURRENT_PLUS_N:
+				areaManager.generatePlayerRegionArea(
+						config.regionCount()
+				);
+				break;
+
+			case NONE:
+			default:
+				areaManager.clearArea();
+				break;
+		}
 	}
 
 	public void stopGame()
@@ -339,6 +384,9 @@ public class InfectedPartymodePlugin extends Plugin
 
 		areaManager.clearArea();
 		hostAuthorityManager.reset();
+
+		// Restore preview after game end
+		updateArenaPreview();
 	}
 
     /* =========================

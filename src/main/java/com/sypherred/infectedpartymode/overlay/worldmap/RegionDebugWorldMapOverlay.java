@@ -61,10 +61,7 @@ public class RegionDebugWorldMapOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
-        if (!config.debugShowRegionIds())
-        {
-            return null;
-        }
+        final boolean previewMode = !plugin.isGameRunning();
 
         Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
         if (map == null)
@@ -90,8 +87,6 @@ public class RegionDebugWorldMapOverlay extends Overlay
 
         int regionPixelSize = (int) Math.ceil(REGION_SIZE * pixelsPerTile);
 
-        boolean previewMode = !plugin.isGameRunning();
-
         for (int x = xRegionMin; x < xRegionMax; x += REGION_SIZE)
         {
             for (int y = yRegionMin; y < yRegionMax; y += REGION_SIZE)
@@ -99,13 +94,13 @@ public class RegionDebugWorldMapOverlay extends Overlay
                 int regionId = ((x >> 6) << 8) | (y >> 6);
                 boolean allowed = areaManager.getAllowedRegions().contains(regionId);
 
-                // --- Preview Mode ---
+                // Preview → draw ONLY allowed regions
                 if (previewMode && !allowed)
                 {
                     continue;
                 }
 
-                // --- Game Running ---
+                // Game running → draw ONLY forbidden regions
                 if (!previewMode && allowed)
                 {
                     continue;
@@ -134,16 +129,20 @@ public class RegionDebugWorldMapOverlay extends Overlay
                     graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
                 }
 
-                String text = String.valueOf(regionId);
-                FontMetrics fm = graphics.getFontMetrics();
-                Rectangle2D tb = fm.getStringBounds(text, graphics);
+                // Debug text ONLY when enabled
+                if (config.debugShowRegionIds())
+                {
+                    String text = String.valueOf(regionId);
+                    FontMetrics fm = graphics.getFontMetrics();
+                    Rectangle2D tb = fm.getStringBounds(text, graphics);
 
-                graphics.setColor(Color.WHITE);
-                graphics.drawString(
-                        text,
-                        rect.x + LABEL_PADDING,
-                        rect.y + LABEL_PADDING + (int) tb.getHeight()
-                );
+                    graphics.setColor(Color.WHITE);
+                    graphics.drawString(
+                            text,
+                            rect.x + LABEL_PADDING,
+                            rect.y + LABEL_PADDING + (int) tb.getHeight()
+                    );
+                }
             }
         }
 
