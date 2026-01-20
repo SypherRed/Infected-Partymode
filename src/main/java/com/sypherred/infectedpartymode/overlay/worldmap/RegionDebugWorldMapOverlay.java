@@ -2,6 +2,8 @@ package com.sypherred.infectedpartymode.overlay.worldmap;
 
 import com.google.inject.Inject;
 import com.sypherred.infectedpartymode.InfectedPartymodeConfig;
+import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
+import com.sypherred.infectedpartymode.area.AreaManager;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -17,21 +19,39 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 
 public class RegionDebugWorldMapOverlay extends Overlay
 {
-    private static final Color FILL_COLOR = new Color(255, 0, 0, 45);
-    private static final Color GRID_COLOR = new Color(255, 0, 0, 150);
+    /* =========================
+       Colors
+       ========================= */
+
+    private static final Color PREVIEW_COLOR = new Color(0, 180, 255, 180);
+    private static final Color OOB_FILL_COLOR = new Color(255, 0, 0, 45);
+    private static final Color OOB_BORDER_COLOR = new Color(255, 0, 0, 150);
+
+    /* =========================
+       Region math
+       ========================= */
 
     private static final int REGION_SIZE = 1 << 6;      // 64 tiles
-    private static final int REGION_TRUNCATE = ~0x3F;   // snap to region
+    private static final int REGION_TRUNCATE = ~0x3F;
     private static final int LABEL_PADDING = 4;
 
     private final Client client;
     private final InfectedPartymodeConfig config;
+    private final InfectedPartymodePlugin plugin;
+    private final AreaManager areaManager;
 
     @Inject
-    public RegionDebugWorldMapOverlay(Client client, InfectedPartymodeConfig config)
+    public RegionDebugWorldMapOverlay(
+            Client client,
+            InfectedPartymodeConfig config,
+            InfectedPartymodePlugin plugin,
+            AreaManager areaManager
+    )
     {
         this.client = client;
         this.config = config;
+        this.plugin = plugin;
+        this.areaManager = areaManager;
 
         setPosition(OverlayPosition.DYNAMIC);
         setLayer(OverlayLayer.ALWAYS_ON_TOP);
@@ -63,7 +83,6 @@ public class RegionDebugWorldMapOverlay extends Overlay
 
         Point center = worldMap.getWorldMapPosition();
 
-        // snap visible area to region grid (CRITICAL)
         int xRegionMin = (center.getX() - widthInTiles  / 2) & REGION_TRUNCATE;
         int xRegionMax = ((center.getX() + widthInTiles  / 2) & REGION_TRUNCATE) + REGION_SIZE;
         int yRegionMin = (center.getY() - heightInTiles / 2) & REGION_TRUNCATE;
@@ -71,29 +90,51 @@ public class RegionDebugWorldMapOverlay extends Overlay
 
         int regionPixelSize = (int) Math.ceil(REGION_SIZE * pixelsPerTile);
 
+        boolean previewMode = !plugin.isGameRunning();
+
         for (int x = xRegionMin; x < xRegionMax; x += REGION_SIZE)
         {
             for (int y = yRegionMin; y < yRegionMax; y += REGION_SIZE)
             {
-                // tile offsets (IDENTICAL to region-locker)
+                int regionId = ((x >> 6) << 8) | (y >> 6);
+                boolean allowed = areaManager.getAllowedRegions().contains(regionId);
+
+                // --- Preview Mode ---
+                if (previewMode && !allowed)
+                {
+                    continue;
+                }
+
+                // --- Game Running ---
+                if (!previewMode && allowed)
+                {
+                    continue;
+                }
+
                 int xTileOffset = x + widthInTiles / 2 - center.getX();
-                int yTileOffset = -( (center.getY() - heightInTiles / 2) - y );
+                int yTileOffset = -((center.getY() - heightInTiles / 2) - y);
 
                 int xPos = (int) (xTileOffset * pixelsPerTile) + worldMapRect.x;
                 int yPos = worldMapRect.height - (int) (yTileOffset * pixelsPerTile) + worldMapRect.y;
-                yPos -= regionPixelSize; // critical Y-fix
-
-                int regionId = ((x >> 6) << 8) | (y >> 6);
-                String text = String.valueOf(regionId);
+                yPos -= regionPixelSize;
 
                 Rectangle rect = new Rectangle(xPos, yPos, regionPixelSize, regionPixelSize);
 
-                graphics.setColor(FILL_COLOR);
-                graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
+                if (previewMode)
+                {
+                    graphics.setColor(PREVIEW_COLOR);
+                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                }
+                else
+                {
+                    graphics.setColor(OOB_FILL_COLOR);
+                    graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
 
-                graphics.setColor(GRID_COLOR);
-                graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                    graphics.setColor(OOB_BORDER_COLOR);
+                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                }
 
+                String text = String.valueOf(regionId);
                 FontMetrics fm = graphics.getFontMetrics();
                 Rectangle2D tb = fm.getStringBounds(text, graphics);
 

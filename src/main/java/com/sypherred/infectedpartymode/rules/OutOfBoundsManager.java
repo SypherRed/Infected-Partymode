@@ -66,7 +66,7 @@ public class OutOfBoundsManager
             client.addChatMessage(
                     ChatMessageType.GAMEMESSAGE,
                     "",
-                    PREFIX + "You have left the arena! Return immediately!",
+                    PREFIX + "<col=ff0000>You have left the arena! Return immediately!</col>",
                     null
             );
         }
