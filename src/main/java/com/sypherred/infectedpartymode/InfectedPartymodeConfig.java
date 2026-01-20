@@ -59,4 +59,16 @@ public interface InfectedPartymodeConfig extends Config
     {
         return "";
     }
+
+    @ConfigItem(
+            keyName = "debugShowRegionIds",
+            name = "Debug: Show Region IDs",
+            description = "Shows region tiles with their region IDs on the world map",
+            position = 90
+    )
+    default boolean debugShowRegionIds()
+    {
+        return false;
+    }
+
 }
