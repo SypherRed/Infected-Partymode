@@ -6,6 +6,10 @@ import javax.inject.Inject;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.slf4j.Logger;
@@ -13,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import net.runelite.api.Client;
 import net.runelite.api.ChatMessageType;
+import net.runelite.api.Player;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
@@ -150,6 +155,7 @@ public class InfectedPartymodePlugin extends Plugin
 		overlayManager.add(gameInfoOverlay);
 		overlayManager.add(regionDebugWorldMapOverlay);
 
+		// Build initial preview (pre-game)
 		updateArenaPreview();
 
 		BufferedImage icon = null;
@@ -224,7 +230,7 @@ public class InfectedPartymodePlugin extends Plugin
 		if (hostAuthorityManager.getHostMemberId() == null)
 		{
 			hostAuthorityManager.claimHost();
-			if (partyService.isInParty())
+			if (partyService.isInParty() && partyService.getLocalMember() != null)
 			{
 				partySyncManager.sendHostClaim(
 						partyService.getLocalMember().getMemberId()
@@ -232,132 +238,32 @@ public class InfectedPartymodePlugin extends Plugin
 			}
 		}
 
+		// Commit preview -> active (or generate active directly if preview empty)
+		areaManager.clearArea();
+
+		Set<Integer> preview = areaManager.getPreviewRegions();
+		if (!preview.isEmpty())
+		{
+			areaManager.setActiveRegions(preview);
+		}
+		else
+		{
+			// Fallback: generate active directly (should rarely happen)
+			generateActiveArenaFromConfig();
+		}
+
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		switch (config.arenaMode())
-		{
-			case PRESET:
-				if (!config.presetArena().isValid())
-				{
-					pluginMessage("Please select a preset arena first.");
-					return;
-				}
-				areaManager.setActiveRegions(
-						config.presetArena().getRegions()
-				);
-				break;
+		// Clear preview once the game starts (avoids mixing states)
+		areaManager.clearPreview();
 
-			case RANDOM:
-				generateRandomArena(false);
-				break;
-
-			case MANUAL:
-				var manual = ManualRegionParser.parse(
-						config.manualRegions()
-				);
-
-				if (manual.isEmpty())
-				{
-					pluginMessage("Please enter valid region IDs for manual arena.");
-					return;
-				}
-
-				areaManager.setActiveRegions(manual);
-				if (partyService.isInParty())
-				{
-					partySyncManager.sendArea();
-				}
-				break;
-
-			case CURRENT_PLUS_N:
-			default:
-				areaManager.generatePlayerRegionArea(
-						config.regionCount()
-				);
-				break;
-		}
-	}
-
-	public void rerollRandomArena()
-	{
-		if (gameState != GameState.IDLE)
-		{
-			pluginMessage("Arena can only be rerolled before the game starts.");
-			return;
-		}
-
-		if (!hostAuthorityManager.isHost())
-		{
-			pluginMessage("Only the host can reroll the arena.");
-			return;
-		}
-
-		if (config.arenaMode() != ArenaMode.RANDOM)
-		{
-			pluginMessage("Reroll is only available in Random mode.");
-			return;
-		}
-
-		generateRandomArena(false);
-	}
-
-	private void generateRandomArena(boolean preview)
-	{
-		int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
-		areaManager.generatePlayerRegionAreaFromRegion(
-				startRegion,
-				config.regionCount()
-		);
-
-		if (!preview && partyService.isInParty())
+		if (partyService.isInParty())
 		{
 			partySyncManager.sendArea();
-			pluginMessage("Random arena generated.");
-		}
-	}
-
-	public void updateArenaPreview()
-	{
-		if (isGameRunning())
-		{
-			return;
 		}
 
-		switch (config.arenaMode())
-		{
-			case PRESET:
-				if (config.presetArena().isValid())
-				{
-					areaManager.setActiveRegions(
-							config.presetArena().getRegions()
-					);
-				}
-				break;
-
-			case RANDOM:
-				generateRandomArena(true);
-				break;
-
-			case MANUAL:
-				var manual = ManualRegionParser.parse(config.manualRegions());
-				if (!manual.isEmpty())
-				{
-					areaManager.setActiveRegions(manual);
-				}
-				break;
-
-			case CURRENT_PLUS_N:
-				areaManager.generatePlayerRegionArea(
-						config.regionCount()
-				);
-				break;
-
-			case NONE:
-			default:
-				areaManager.clearArea();
-				break;
-		}
+		pluginMessage("Game started.");
 	}
 
 	public void stopGame()
@@ -387,6 +293,174 @@ public class InfectedPartymodePlugin extends Plugin
 
 		// Restore preview after game end
 		updateArenaPreview();
+
+		pluginMessage("Game stopped.");
+	}
+
+	public void rerollRandomArena()
+	{
+		if (gameState != GameState.IDLE)
+		{
+			pluginMessage("Arena can only be rerolled before the game starts.");
+			return;
+		}
+
+		if (!hostAuthorityManager.isHost())
+		{
+			pluginMessage("Only the host can reroll the arena.");
+			return;
+		}
+
+		if (config.arenaMode() != ArenaMode.RANDOM)
+		{
+			pluginMessage("Reroll is only available in Random mode.");
+			return;
+		}
+
+		generateRandomPreviewArena();
+		pluginMessage("Random arena preview rerolled.");
+	}
+
+    /* =========================
+       Preview (pre-game)
+       ========================= */
+
+	public void updateArenaPreview()
+	{
+		if (isGameRunning())
+		{
+			return;
+		}
+
+		areaManager.clearPreview();
+
+		switch (config.arenaMode())
+		{
+			case PRESET:
+				if (config.presetArena().isValid())
+				{
+					areaManager.setPreviewRegions(
+							config.presetArena().getRegions()
+					);
+				}
+				break;
+
+			case RANDOM:
+				generateRandomPreviewArena();
+				break;
+
+			case MANUAL:
+				var manual = ManualRegionParser.parse(config.manualRegions());
+				if (!manual.isEmpty())
+				{
+					areaManager.setPreviewRegions(manual);
+				}
+				break;
+
+			case CURRENT_PLUS_N:
+				Player local = client.getLocalPlayer();
+				if (local != null)
+				{
+					int startRegionId = local.getWorldLocation().getRegionID();
+					areaManager.setPreviewRegions(
+							buildConnectedRegionCluster(startRegionId, config.regionCount())
+					);
+				}
+				break;
+
+			case NONE:
+			default:
+				break;
+		}
+	}
+
+	private void generateRandomPreviewArena()
+	{
+		int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
+		areaManager.setPreviewRegions(
+				buildConnectedRegionCluster(startRegion, config.regionCount())
+		);
+	}
+
+	private void generateActiveArenaFromConfig()
+	{
+		switch (config.arenaMode())
+		{
+			case PRESET:
+				if (config.presetArena().isValid())
+				{
+					areaManager.setActiveRegions(config.presetArena().getRegions());
+				}
+				break;
+
+			case RANDOM:
+				int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
+				areaManager.generatePlayerRegionAreaFromRegion(startRegion, config.regionCount());
+				break;
+
+			case MANUAL:
+				var manual = ManualRegionParser.parse(config.manualRegions());
+				if (!manual.isEmpty())
+				{
+					areaManager.setActiveRegions(manual);
+				}
+				break;
+
+			case CURRENT_PLUS_N:
+			default:
+				areaManager.generatePlayerRegionArea(config.regionCount());
+				break;
+		}
+	}
+
+	/**
+	 * Builds a connected region cluster (64x64 tiles per region) using the same logic as AreaManager,
+	 * but returns a Set so we can use it for PREVIEW without touching allowedRegions.
+	 */
+	private static Set<Integer> buildConnectedRegionCluster(int startRegionId, int regionCount)
+	{
+		if (regionCount < 1)
+		{
+			regionCount = 1;
+		}
+
+		Set<Integer> regions = new HashSet<>();
+		regions.add(startRegionId);
+
+		Queue<Integer> frontier = new LinkedList<>();
+		frontier.add(startRegionId);
+
+		while (!frontier.isEmpty() && regions.size() < regionCount)
+		{
+			int regionId = frontier.poll();
+
+			int rx = regionId >> 8;
+			int ry = regionId & 0xFF;
+
+			int[][] neighbors = {
+					{rx + 1, ry},
+					{rx - 1, ry},
+					{rx, ry + 1},
+					{rx, ry - 1}
+			};
+
+			for (int[] n : neighbors)
+			{
+				int neighborId = (n[0] << 8) | n[1];
+
+				if (regions.add(neighborId))
+				{
+					frontier.add(neighborId);
+
+					if (regions.size() >= regionCount)
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		return regions;
 	}
 
     /* =========================

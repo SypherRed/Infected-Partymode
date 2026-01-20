@@ -7,6 +7,7 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.util.Set;
 
 import net.runelite.api.Client;
 import net.runelite.api.Point;
@@ -63,6 +64,17 @@ public class RegionDebugWorldMapOverlay extends Overlay
     {
         final boolean previewMode = !plugin.isGameRunning();
 
+        // Decide which regions to use
+        final Set<Integer> regions = previewMode
+                ? areaManager.getPreviewRegions()
+                : areaManager.getAllowedRegions();
+
+        // Nothing to draw
+        if (regions.isEmpty() && !config.debugShowRegionIds())
+        {
+            return null;
+        }
+
         Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
         if (map == null)
         {
@@ -92,16 +104,16 @@ public class RegionDebugWorldMapOverlay extends Overlay
             for (int y = yRegionMin; y < yRegionMax; y += REGION_SIZE)
             {
                 int regionId = ((x >> 6) << 8) | (y >> 6);
-                boolean allowed = areaManager.getAllowedRegions().contains(regionId);
+                boolean inSet = regions.contains(regionId);
 
-                // Preview → draw ONLY allowed regions
-                if (previewMode && !allowed)
+                // Preview → draw ONLY preview regions
+                if (previewMode && !inSet)
                 {
                     continue;
                 }
 
                 // Game running → draw ONLY forbidden regions
-                if (!previewMode && allowed)
+                if (!previewMode && inSet)
                 {
                     continue;
                 }
@@ -129,7 +141,7 @@ public class RegionDebugWorldMapOverlay extends Overlay
                     graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
                 }
 
-                // Debug text ONLY when enabled
+                // Debug text
                 if (config.debugShowRegionIds())
                 {
                     String text = String.valueOf(regionId);
