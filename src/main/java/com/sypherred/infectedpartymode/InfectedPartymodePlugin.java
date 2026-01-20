@@ -31,6 +31,7 @@ import com.sypherred.infectedpartymode.area.ManualRegionParser;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
+import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
@@ -100,11 +101,14 @@ public class InfectedPartymodePlugin extends Plugin
 	private InfectedPanel infectedPanel;
 
     /* =========================
-       Overlay
+       Overlays
        ========================= */
 
 	@Inject
 	private ArenaRegionShadeOverlay arenaRegionShadeOverlay;
+
+	@Inject
+	private GameInfoOverlay gameInfoOverlay;
 
     /* =========================
        State
@@ -138,6 +142,7 @@ public class InfectedPartymodePlugin extends Plugin
 		gameTimer = new GameTimer(executor);
 
 		overlayManager.add(arenaRegionShadeOverlay);
+		overlayManager.add(gameInfoOverlay);
 
 		BufferedImage icon = null;
 		try
@@ -170,6 +175,7 @@ public class InfectedPartymodePlugin extends Plugin
 		stopGame();
 
 		overlayManager.remove(arenaRegionShadeOverlay);
+		overlayManager.remove(gameInfoOverlay);
 
 		if (navButton != null)
 		{
@@ -196,23 +202,13 @@ public class InfectedPartymodePlugin extends Plugin
 
 		if (config.arenaMode() == ArenaMode.NONE)
 		{
-			client.addChatMessage(
-					ChatMessageType.GAMEMESSAGE,
-					"",
-					"Please select an arena mode first.",
-					null
-			);
+			pluginMessage("Please select an arena mode first.");
 			return;
 		}
 
 		if (!hostAuthorityManager.isHost())
 		{
-			client.addChatMessage(
-					ChatMessageType.GAMEMESSAGE,
-					"",
-					"Only the host can start the game.",
-					null
-			);
+			pluginMessage("Only the host can start the game.");
 			return;
 		}
 
@@ -235,12 +231,7 @@ public class InfectedPartymodePlugin extends Plugin
 			case PRESET:
 				if (!config.presetArena().isValid())
 				{
-					client.addChatMessage(
-							ChatMessageType.GAMEMESSAGE,
-							"",
-							"Please select a preset arena first.",
-							null
-					);
+					pluginMessage("Please select a preset arena first.");
 					return;
 				}
 				areaManager.setActiveRegions(
@@ -259,12 +250,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 				if (manual.isEmpty())
 				{
-					client.addChatMessage(
-							ChatMessageType.GAMEMESSAGE,
-							"",
-							"Please enter valid region IDs for manual arena.",
-							null
-					);
+					pluginMessage("Please enter valid region IDs for manual arena.");
 					return;
 				}
 
@@ -282,23 +268,25 @@ public class InfectedPartymodePlugin extends Plugin
 				);
 				break;
 		}
-
 	}
 
 	public void rerollRandomArena()
 	{
 		if (gameState != GameState.IDLE)
 		{
+			pluginMessage("Arena can only be rerolled before the game starts.");
 			return;
 		}
 
 		if (!hostAuthorityManager.isHost())
 		{
+			pluginMessage("Only the host can reroll the arena.");
 			return;
 		}
 
 		if (config.arenaMode() != ArenaMode.RANDOM)
 		{
+			pluginMessage("Reroll is only available in Random mode.");
 			return;
 		}
 
@@ -317,11 +305,8 @@ public class InfectedPartymodePlugin extends Plugin
 		{
 			partySyncManager.sendArea();
 		}
-	}
 
-	public ArenaMode getArenaMode()
-	{
-		return config.arenaMode();
+		pluginMessage("Random arena generated.");
 	}
 
 	public void stopGame()
@@ -333,12 +318,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		if (!hostAuthorityManager.isHost())
 		{
-			client.addChatMessage(
-					ChatMessageType.GAMEMESSAGE,
-					"",
-					"Only the host can stop the game.",
-					null
-			);
+			pluginMessage("Only the host can stop the game.");
 			return;
 		}
 
@@ -375,7 +355,7 @@ public class InfectedPartymodePlugin extends Plugin
 	}
 
     /* =========================
-       Accessors
+       Accessors (Overlay / UI)
        ========================= */
 
 	public boolean isGameRunning()
@@ -386,5 +366,34 @@ public class InfectedPartymodePlugin extends Plugin
 	public int getRemainingSeconds()
 	{
 		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
+	}
+
+	public ArenaMode getArenaMode()
+	{
+		return config.arenaMode();
+	}
+
+	public int getActiveRegionCount()
+	{
+		return areaManager.getAllowedRegions().size();
+	}
+
+	public boolean isHost()
+	{
+		return hostAuthorityManager.isHost();
+	}
+
+    /* =========================
+       Chat helper
+       ========================= */
+
+	private void pluginMessage(String message)
+	{
+		client.addChatMessage(
+				ChatMessageType.GAMEMESSAGE,
+				"",
+				"[Infected] " + message,
+				null
+		);
 	}
 }

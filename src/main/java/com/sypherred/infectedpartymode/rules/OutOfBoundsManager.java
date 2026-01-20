@@ -16,6 +16,7 @@ import javax.inject.Inject;
 public class OutOfBoundsManager
 {
     private static final int GRACE_TICKS = 5; // ~3 seconds
+    private static final String PREFIX = "[Infected] ";
 
     private final Client client;
     private final AreaManager areaManager;
@@ -65,10 +66,9 @@ public class OutOfBoundsManager
             client.addChatMessage(
                     ChatMessageType.GAMEMESSAGE,
                     "",
-                    "You have left the arena! Please return.",
+                    PREFIX + "You have left the arena! Return immediately!",
                     null
             );
-
         }
     }
 

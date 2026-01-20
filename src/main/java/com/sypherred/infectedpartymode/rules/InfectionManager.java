@@ -5,10 +5,10 @@ import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
 
 import net.runelite.api.Client;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Player;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
-import net.runelite.client.Notifier;
 import net.runelite.client.eventbus.Subscribe;
 
 import javax.inject.Inject;
@@ -22,23 +22,21 @@ public class InfectionManager
 {
     private static final int INFECTION_RADIUS_TILES = 1;
     private static final int REQUIRED_TICKS = 3;
+    private static final String PREFIX = "[Infected] ";
 
     private final Client client;
     private final PartySyncManager partySyncManager;
-    private final Notifier notifier;
 
     private int nearInfectedTicks = 0;
 
     @Inject
     public InfectionManager(
             Client client,
-            PartySyncManager partySyncManager,
-            Notifier notifier
+            PartySyncManager partySyncManager
     )
     {
         this.client = client;
         this.partySyncManager = partySyncManager;
-        this.notifier = notifier;
     }
 
     @Subscribe
@@ -105,7 +103,16 @@ public class InfectionManager
 
     private void infectLocalPlayer(String playerName)
     {
-        notifier.notify("You got infected!");
-        partySyncManager.sendInfectionState(playerName, InfectionState.INFECTED);
+        client.addChatMessage(
+                ChatMessageType.GAMEMESSAGE,
+                "",
+                PREFIX + "You got infected!",
+                null
+        );
+
+        partySyncManager.sendInfectionState(
+                playerName,
+                InfectionState.INFECTED
+        );
     }
 }
