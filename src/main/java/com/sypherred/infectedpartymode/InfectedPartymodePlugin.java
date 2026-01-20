@@ -419,6 +419,11 @@ public class InfectedPartymodePlugin extends Plugin
 		return hostAuthorityManager.isHost();
 	}
 
+	public int getActiveRegionCount()
+	{
+		return areaManager.getAllowedRegions().size();
+	}
+
 	/* =========================
 	   Chat
 	   ========================= */
