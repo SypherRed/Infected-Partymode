@@ -52,17 +52,29 @@ public class InfectedPanel extends PluginPanel
         startGame = new JButton("▶ Start Game (10 min)");
         startGame.setAlignmentX(Component.CENTER_ALIGNMENT);
         startGame.setToolTipText("Start the game with the selected arena settings");
-        startGame.addActionListener(e -> plugin.startGame(600));
+        startGame.addActionListener(e ->
+        {
+            plugin.startGame(600);
+            refreshControls();
+        });
 
         rerollArena = new JButton("🎲 Reroll Arena");
         rerollArena.setAlignmentX(Component.CENTER_ALIGNMENT);
         rerollArena.setToolTipText("Generate a new random arena (Random mode only)");
-        rerollArena.addActionListener(e -> plugin.rerollRandomArena());
+        rerollArena.addActionListener(e ->
+        {
+            plugin.rerollRandomArena();
+            refreshControls();
+        });
 
         stopGame = new JButton("■ Stop Game");
         stopGame.setAlignmentX(Component.CENTER_ALIGNMENT);
         stopGame.setToolTipText("Stop the running game");
-        stopGame.addActionListener(e -> plugin.stopGame());
+        stopGame.addActionListener(e ->
+        {
+            plugin.stopGame();
+            refreshControls();
+        });
 
         panel.add(startGame);
         panel.add(Box.createVerticalStrut(6));

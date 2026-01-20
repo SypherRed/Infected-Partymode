@@ -62,21 +62,20 @@ public class RegionDebugWorldMapOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
-        final boolean previewMode = !plugin.isGameRunning();
-
-        // Decide which regions to use
-        final Set<Integer> regions = previewMode
-                ? areaManager.getPreviewRegions()
-                : areaManager.getAllowedRegions();
-
-        // Nothing to draw
-        if (regions.isEmpty() && !config.debugShowRegionIds())
+        Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
+        if (map == null)
         {
             return null;
         }
 
-        Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
-        if (map == null)
+        final boolean previewMode = !plugin.isGameRunning();
+        final Set<Integer> previewRegions = areaManager.getPreviewRegions();
+        final Set<Integer> activeRegions  = areaManager.getAllowedRegions();
+
+        // If NOTHING should be shown at all
+        if (!config.debugShowRegionIds()
+                && previewMode
+                && previewRegions.isEmpty())
         {
             return null;
         }
@@ -104,16 +103,18 @@ public class RegionDebugWorldMapOverlay extends Overlay
             for (int y = yRegionMin; y < yRegionMax; y += REGION_SIZE)
             {
                 int regionId = ((x >> 6) << 8) | (y >> 6);
-                boolean inSet = regions.contains(regionId);
 
-                // Preview → draw ONLY preview regions
-                if (previewMode && !inSet)
+                boolean isPreview = previewRegions.contains(regionId);
+                boolean isAllowed = activeRegions.contains(regionId);
+
+                // Preview mode → draw ONLY preview regions
+                if (previewMode && !isPreview && !config.debugShowRegionIds())
                 {
                     continue;
                 }
 
                 // Game running → draw ONLY forbidden regions
-                if (!previewMode && inSet)
+                if (!previewMode && isAllowed)
                 {
                     continue;
                 }
@@ -127,12 +128,12 @@ public class RegionDebugWorldMapOverlay extends Overlay
 
                 Rectangle rect = new Rectangle(xPos, yPos, regionPixelSize, regionPixelSize);
 
-                if (previewMode)
+                if (previewMode && isPreview)
                 {
                     graphics.setColor(PREVIEW_COLOR);
                     graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
                 }
-                else
+                else if (!previewMode)
                 {
                     graphics.setColor(OOB_FILL_COLOR);
                     graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -141,7 +142,6 @@ public class RegionDebugWorldMapOverlay extends Overlay
                     graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
                 }
 
-                // Debug text
                 if (config.debugShowRegionIds())
                 {
                     String text = String.valueOf(regionId);

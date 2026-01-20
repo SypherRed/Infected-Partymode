@@ -22,6 +22,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -52,85 +53,32 @@ import com.sypherred.infectedpartymode.ui.InfectedPanel;
 )
 public class InfectedPartymodePlugin extends Plugin
 {
-	private static final Logger log =
-			LoggerFactory.getLogger(InfectedPartymodePlugin.class);
+	private static final Logger log = LoggerFactory.getLogger(InfectedPartymodePlugin.class);
 
-    /* =========================
-       Injected core services
-       ========================= */
+	@Inject private Client client;
+	@Inject private EventBus eventBus;
+	@Inject private OverlayManager overlayManager;
+	@Inject private ClientToolbar clientToolbar;
+	@Inject private ScheduledExecutorService executor;
+	@Inject private PartyService partyService;
+	@Inject private PartySyncManager partySyncManager;
+	@Inject private HostAuthorityManager hostAuthorityManager;
+	@Inject private InfectedPartymodeConfig config;
 
-	@Inject
-	private Client client;
-
-	@Inject
-	private EventBus eventBus;
-
-	@Inject
-	private OverlayManager overlayManager;
-
-	@Inject
-	private ClientToolbar clientToolbar;
-
-	@Inject
-	private ScheduledExecutorService executor;
-
-	@Inject
-	private PartyService partyService;
-
-	@Inject
-	private PartySyncManager partySyncManager;
-
-	@Inject
-	private HostAuthorityManager hostAuthorityManager;
-
-	@Inject
-	private InfectedPartymodeConfig config;
-
-    /* =========================
-       Game logic
-       ========================= */
-
-	@Inject
-	private AreaManager areaManager;
-
-	@Inject
-	private OutOfBoundsManager outOfBoundsManager;
-
+	@Inject private AreaManager areaManager;
+	@Inject private OutOfBoundsManager outOfBoundsManager;
 	@SuppressWarnings("unused")
-	@Inject
-	private InfectionManager infectionManager;
+	@Inject private InfectionManager infectionManager;
 
-    /* =========================
-       UI
-       ========================= */
+	@Inject private InfectedPanel infectedPanel;
 
-	@Inject
-	private InfectedPanel infectedPanel;
-
-    /* =========================
-       Overlays
-       ========================= */
-
-	@Inject
-	private ArenaRegionShadeOverlay arenaRegionShadeOverlay;
-
-	@Inject
-	private GameInfoOverlay gameInfoOverlay;
-
-	@Inject
-	private RegionDebugWorldMapOverlay regionDebugWorldMapOverlay;
-
-    /* =========================
-       State
-       ========================= */
+	@Inject private ArenaRegionShadeOverlay arenaRegionShadeOverlay;
+	@Inject private GameInfoOverlay gameInfoOverlay;
+	@Inject private RegionDebugWorldMapOverlay regionDebugWorldMapOverlay;
 
 	private GameState gameState = GameState.IDLE;
 	private GameTimer gameTimer;
 	private NavigationButton navButton;
-
-    /* =========================
-       Config
-       ========================= */
 
 	@Provides
 	InfectedPartymodeConfig provideConfig(ConfigManager configManager)
@@ -138,32 +86,23 @@ public class InfectedPartymodePlugin extends Plugin
 		return configManager.getConfig(InfectedPartymodeConfig.class);
 	}
 
-    /* =========================
-       Lifecycle
-       ========================= */
-
 	@Override
 	protected void startUp()
 	{
-		log.info("Infected Partymode starting");
-
 		eventBus.register(outOfBoundsManager);
-
 		gameTimer = new GameTimer(executor);
 
 		overlayManager.add(arenaRegionShadeOverlay);
 		overlayManager.add(gameInfoOverlay);
 		overlayManager.add(regionDebugWorldMapOverlay);
 
-		// Build initial preview (pre-game)
-		updateArenaPreview();
+		// Build initial PREVIEW (pre-game)
+		buildPreviewFromConfig();
 
 		BufferedImage icon = null;
 		try
 		{
-			icon = ImageIO.read(
-					getClass().getResourceAsStream("/infected_icon.png")
-			);
+			icon = ImageIO.read(getClass().getResourceAsStream("/infected_icon.png"));
 		}
 		catch (IOException | IllegalArgumentException e)
 		{
@@ -177,16 +116,16 @@ public class InfectedPartymodePlugin extends Plugin
 				.build();
 
 		clientToolbar.addNavigation(navButton);
+		infectedPanel.refreshControls();
 	}
 
 	@Override
 	protected void shutDown()
 	{
-		log.info("Infected Partymode shutting down");
-
 		eventBus.unregister(outOfBoundsManager);
 
-		stopGame();
+		// Force cleanup (no host-checks on shutdown)
+		forceStop();
 
 		overlayManager.remove(arenaRegionShadeOverlay);
 		overlayManager.remove(gameInfoOverlay);
@@ -199,9 +138,30 @@ public class InfectedPartymodePlugin extends Plugin
 		}
 	}
 
-    /* =========================
-       Game control (HOST-ONLY)
-       ========================= */
+	/* =========================
+	   Config -> Preview refresh
+	   ========================= */
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged e)
+	{
+		if (!"infectedpartymode".equals(e.getGroup()))
+		{
+			return;
+		}
+
+		// Only rebuild preview if we're not running
+		if (gameState == GameState.IDLE)
+		{
+			buildPreviewFromConfig();
+		}
+
+		infectedPanel.refreshControls();
+	}
+
+	/* =========================
+	   Game Control
+	   ========================= */
 
 	public void startGame(int durationSeconds)
 	{
@@ -210,8 +170,10 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		if (client.getLocalPlayer() == null)
+		Player local = client.getLocalPlayer();
+		if (local == null)
 		{
+			pluginMessage("Local player not ready yet.");
 			return;
 		}
 
@@ -227,42 +189,45 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
+		// Claim host once (party-safe)
 		if (hostAuthorityManager.getHostMemberId() == null)
 		{
 			hostAuthorityManager.claimHost();
 			if (partyService.isInParty() && partyService.getLocalMember() != null)
 			{
-				partySyncManager.sendHostClaim(
-						partyService.getLocalMember().getMemberId()
-				);
+				partySyncManager.sendHostClaim(partyService.getLocalMember().getMemberId());
 			}
 		}
 
-		// Commit preview -> active (or generate active directly if preview empty)
+		// Commit preview -> active arena
 		areaManager.clearArea();
-
 		Set<Integer> preview = areaManager.getPreviewRegions();
-		if (!preview.isEmpty())
+
+		if (preview.isEmpty())
 		{
-			areaManager.setActiveRegions(preview);
+			// Fallback (should not happen often)
+			buildPreviewFromConfig();
+			preview = areaManager.getPreviewRegions();
 		}
-		else
+
+		if (preview.isEmpty())
 		{
-			// Fallback: generate active directly (should rarely happen)
-			generateActiveArenaFromConfig();
+			pluginMessage("No preview arena available. Check your settings.");
+			return;
 		}
+
+		areaManager.setActiveRegions(preview);
+		areaManager.clearPreview();
 
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
-
-		// Clear preview once the game starts (avoids mixing states)
-		areaManager.clearPreview();
 
 		if (partyService.isInParty())
 		{
 			partySyncManager.sendArea();
 		}
 
+		infectedPanel.refreshControls();
 		pluginMessage("Game started.");
 	}
 
@@ -279,21 +244,15 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		log.info("Stopping game");
-
 		gameState = GameState.IDLE;
-
-		if (gameTimer != null)
-		{
-			gameTimer.stop();
-		}
+		gameTimer.stop();
 
 		areaManager.clearArea();
-		hostAuthorityManager.reset();
 
-		// Restore preview after game end
-		updateArenaPreview();
+		// Restore preview after game ends
+		buildPreviewFromConfig();
 
+		infectedPanel.refreshControls();
 		pluginMessage("Game stopped.");
 	}
 
@@ -317,40 +276,42 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		generateRandomPreviewArena();
-		pluginMessage("Random arena preview rerolled.");
+		generateRandomPreview();
+		infectedPanel.refreshControls();
+		pluginMessage("Arena rerolled.");
 	}
 
-    /* =========================
-       Preview (pre-game)
-       ========================= */
+	/* =========================
+	   Preview Logic (pre-game)
+	   ========================= */
 
-	public void updateArenaPreview()
+	private void buildPreviewFromConfig()
 	{
-		if (isGameRunning())
+		// Pre-game: active arena must be empty
+		areaManager.clearArea();
+		areaManager.clearPreview();
+
+		Player local = client.getLocalPlayer();
+		if (local == null)
 		{
 			return;
 		}
-
-		areaManager.clearPreview();
 
 		switch (config.arenaMode())
 		{
 			case PRESET:
 				if (config.presetArena().isValid())
 				{
-					areaManager.setPreviewRegions(
-							config.presetArena().getRegions()
-					);
+					areaManager.setPreviewRegions(config.presetArena().getRegions());
 				}
 				break;
 
 			case RANDOM:
-				generateRandomPreviewArena();
+				generateRandomPreview();
 				break;
 
 			case MANUAL:
-				var manual = ManualRegionParser.parse(config.manualRegions());
+				Set<Integer> manual = ManualRegionParser.parse(config.manualRegions());
 				if (!manual.isEmpty())
 				{
 					areaManager.setPreviewRegions(manual);
@@ -358,65 +319,29 @@ public class InfectedPartymodePlugin extends Plugin
 				break;
 
 			case CURRENT_PLUS_N:
-				Player local = client.getLocalPlayer();
-				if (local != null)
-				{
-					int startRegionId = local.getWorldLocation().getRegionID();
-					areaManager.setPreviewRegions(
-							buildConnectedRegionCluster(startRegionId, config.regionCount())
-					);
-				}
+				int start = local.getWorldLocation().getRegionID();
+				areaManager.setPreviewRegions(buildConnectedRegionCluster(start, config.regionCount()));
 				break;
 
 			case NONE:
 			default:
+				// leave preview empty
 				break;
 		}
 	}
 
-	private void generateRandomPreviewArena()
+	private void generateRandomPreview()
 	{
-		int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
-		areaManager.setPreviewRegions(
-				buildConnectedRegionCluster(startRegion, config.regionCount())
-		);
-	}
-
-	private void generateActiveArenaFromConfig()
-	{
-		switch (config.arenaMode())
+		Player local = client.getLocalPlayer();
+		if (local == null)
 		{
-			case PRESET:
-				if (config.presetArena().isValid())
-				{
-					areaManager.setActiveRegions(config.presetArena().getRegions());
-				}
-				break;
-
-			case RANDOM:
-				int startRegion = AreaRandomUtil.randomRegionAnywhere(client);
-				areaManager.generatePlayerRegionAreaFromRegion(startRegion, config.regionCount());
-				break;
-
-			case MANUAL:
-				var manual = ManualRegionParser.parse(config.manualRegions());
-				if (!manual.isEmpty())
-				{
-					areaManager.setActiveRegions(manual);
-				}
-				break;
-
-			case CURRENT_PLUS_N:
-			default:
-				areaManager.generatePlayerRegionArea(config.regionCount());
-				break;
+			return;
 		}
+
+		int start = AreaRandomUtil.randomRegionAnywhere(client);
+		areaManager.setPreviewRegions(buildConnectedRegionCluster(start, config.regionCount()));
 	}
 
-	/**
-	 * Builds a connected region cluster (64x64 tiles per region) using the same logic as AreaManager,
-	 * but returns a Set so we can use it for PREVIEW without touching allowedRegions.
-	 */
 	private static Set<Integer> buildConnectedRegionCluster(int startRegionId, int regionCount)
 	{
 		if (regionCount < 1)
@@ -451,7 +376,6 @@ public class InfectedPartymodePlugin extends Plugin
 				if (regions.add(neighborId))
 				{
 					frontier.add(neighborId);
-
 					if (regions.size() >= regionCount)
 					{
 						break;
@@ -463,37 +387,26 @@ public class InfectedPartymodePlugin extends Plugin
 		return regions;
 	}
 
-    /* =========================
-       Ticks
-       ========================= */
+	/* =========================
+	   Tick
+	   ========================= */
 
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		if (gameState != GameState.RUNNING)
+		if (gameState == GameState.RUNNING && gameTimer.getRemainingSeconds() <= 0)
 		{
-			return;
-		}
-
-		if (gameTimer.getRemainingSeconds() <= 0)
-		{
-			log.info("Game timer ended");
 			stopGame();
 		}
 	}
 
-    /* =========================
-       Accessors (Overlay / UI)
-       ========================= */
+	/* =========================
+	   Accessors
+	   ========================= */
 
 	public boolean isGameRunning()
 	{
 		return gameState == GameState.RUNNING;
-	}
-
-	public int getRemainingSeconds()
-	{
-		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
 	}
 
 	public ArenaMode getArenaMode()
@@ -501,27 +414,36 @@ public class InfectedPartymodePlugin extends Plugin
 		return config.arenaMode();
 	}
 
-	public int getActiveRegionCount()
-	{
-		return areaManager.getAllowedRegions().size();
-	}
-
 	public boolean isHost()
 	{
 		return hostAuthorityManager.isHost();
 	}
 
-    /* =========================
-       Chat helper
-       ========================= */
+	/* =========================
+	   Chat
+	   ========================= */
 
-	private void pluginMessage(String message)
+	private void pluginMessage(String msg)
 	{
 		client.addChatMessage(
 				ChatMessageType.GAMEMESSAGE,
 				"",
-				"[Infected] " + message,
+				"[Infected] " + msg,
 				null
 		);
+	}
+
+	// Used by shutdown to prevent host-checks blocking cleanup
+	private void forceStop()
+	{
+		gameState = GameState.IDLE;
+
+		if (gameTimer != null)
+		{
+			gameTimer.stop();
+		}
+
+		areaManager.clearArea();
+		areaManager.clearPreview();
 	}
 }
