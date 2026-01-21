@@ -4,9 +4,9 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.model.GameSession;
 import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
-import com.sypherred.infectedpartymode.ui.InfectedPanel;
 
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.PartyChanged;
 import net.runelite.client.party.PartyService;
@@ -27,7 +27,7 @@ public class PartySyncManager
     private final PartyService partyService;
     private final AreaManager areaManager;
     private final HostAuthorityManager hostAuthorityManager;
-    private final InfectedPanel infectedPanel;
+    private final EventBus eventBus;
 
     private final GameSession gameSession = new GameSession();
     private final Map<String, PlayerState> playerStates = new HashMap<>();
@@ -39,13 +39,13 @@ public class PartySyncManager
             PartyService partyService,
             AreaManager areaManager,
             HostAuthorityManager hostAuthorityManager,
-            InfectedPanel infectedPanel
+            EventBus eventBus
     )
     {
         this.partyService = partyService;
         this.areaManager = areaManager;
         this.hostAuthorityManager = hostAuthorityManager;
-        this.infectedPanel = infectedPanel;
+        this.eventBus = eventBus;
     }
 
     /* =========================
@@ -61,7 +61,7 @@ public class PartySyncManager
         {
             hostAuthorityManager.reset();
             playerStates.clear();
-            infectedPanel.refreshPlayerList();
+            eventBus.post(PlayerStatesUpdated.INSTANCE);
         }
 
         log.debug("Party changed: inParty={}", inParty);
@@ -153,11 +153,10 @@ public class PartySyncManager
             case "INFECT":
                 if (parts.length >= 3)
                 {
-                    String player = parts[1];
                     InfectionState state = safeInfectionState(parts[2]);
                     if (state != null)
                     {
-                        updateLocalState(player, state);
+                        updateLocalState(parts[1], state);
                     }
                 }
                 break;
@@ -220,8 +219,8 @@ public class PartySyncManager
             return existing;
         });
 
-        // Always keep UI in sync
-        infectedPanel.refreshPlayerList();
+        // Notify UI listeners
+        eventBus.post(PlayerStatesUpdated.INSTANCE);
     }
 
     public Map<String, PlayerState> getPlayerStates()

@@ -1,12 +1,15 @@
 package com.sypherred.infectedpartymode.ui;
 
 import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
-import com.sypherred.infectedpartymode.model.InfectionState;
-import com.sypherred.infectedpartymode.party.PartySyncManager;
-import com.sypherred.infectedpartymode.party.HostAuthorityManager;
-import com.sypherred.infectedpartymode.model.PlayerState;
 import com.sypherred.infectedpartymode.area.ArenaMode;
+import com.sypherred.infectedpartymode.model.InfectionState;
+import com.sypherred.infectedpartymode.model.PlayerState;
+import com.sypherred.infectedpartymode.party.HostAuthorityManager;
+import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.party.PlayerStatesUpdated;
 
+import net.runelite.client.eventbus.EventBus;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.inject.Inject;
@@ -18,6 +21,7 @@ public class InfectedPanel extends PluginPanel
     private final InfectedPartymodePlugin plugin;
     private final PartySyncManager partySyncManager;
     private final HostAuthorityManager hostAuthorityManager;
+    private final EventBus eventBus;
 
     private JButton startGame;
     private JButton rerollArena;
@@ -33,12 +37,14 @@ public class InfectedPanel extends PluginPanel
     public InfectedPanel(
             InfectedPartymodePlugin plugin,
             PartySyncManager partySyncManager,
-            HostAuthorityManager hostAuthorityManager
+            HostAuthorityManager hostAuthorityManager,
+            EventBus eventBus
     )
     {
         this.plugin = plugin;
         this.partySyncManager = partySyncManager;
         this.hostAuthorityManager = hostAuthorityManager;
+        this.eventBus = eventBus;
 
         setLayout(new BorderLayout(0, 8));
 
@@ -46,8 +52,24 @@ public class InfectedPanel extends PluginPanel
         add(buildControlPanel(), BorderLayout.CENTER);
         add(buildPlayerList(), BorderLayout.SOUTH);
 
+        eventBus.register(this);
+
         refreshControls();
     }
+
+    /* =========================
+       Event handling
+       ========================= */
+
+    @Subscribe
+    public void onPlayerStatesUpdated(PlayerStatesUpdated e)
+    {
+        refreshPlayerList();
+    }
+
+    /* =========================
+       UI builders
+       ========================= */
 
     private JPanel buildStatusPanel()
     {
@@ -116,6 +138,10 @@ public class InfectedPanel extends PluginPanel
         return scrollPane;
     }
 
+    /* =========================
+       Player list
+       ========================= */
+
     public void refreshPlayerList()
     {
         playerListPanel.removeAll();
@@ -149,6 +175,10 @@ public class InfectedPanel extends PluginPanel
         playerListPanel.revalidate();
         playerListPanel.repaint();
     }
+
+    /* =========================
+       Control / status
+       ========================= */
 
     public void refreshControls()
     {
