@@ -470,6 +470,11 @@ public class InfectedPartymodePlugin extends Plugin
 		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
 	}
 
+	public boolean isHost()
+	{
+		return hostAuthorityManager.isHost();
+	}
+
     /* =========================
        Chat
        ========================= */
