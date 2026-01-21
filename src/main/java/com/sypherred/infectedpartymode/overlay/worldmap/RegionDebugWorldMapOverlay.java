@@ -24,9 +24,9 @@ public class RegionDebugWorldMapOverlay extends Overlay
        Colors
        ========================= */
 
-    private static final Color DEBUG_FILL_COLOR   = new Color(255, 0, 21, 190);
+    private static final Color DEBUG_FILL_COLOR   = new Color(255, 0, 21, 73);
     private static final Color DEBUG_BORDER_COLOR   = new Color(215, 12, 50, 197);
-    private static final Color PREVIEW_FILL_COLOR      = new Color(0, 180, 255, 180);
+    private static final Color PREVIEW_FILL_COLOR      = new Color(0, 180, 255, 70);
     private static final Color PREVIEW_BORDER_COLOR      = new Color(2, 87, 122, 180);
     private static final Color OOB_FILL_COLOR     = new Color(255, 0, 0, 45);
     private static final Color OOB_BORDER_COLOR   = new Color(255, 0, 0, 150);
