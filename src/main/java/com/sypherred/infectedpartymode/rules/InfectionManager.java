@@ -28,6 +28,8 @@ public class InfectionManager
     private final PartySyncManager partySyncManager;
     private final HostAuthorityManager hostAuthorityManager;
 
+    private boolean infectionProcessedThisTick = false;
+
     @Inject
     public InfectionManager(
             Client client,
@@ -43,7 +45,10 @@ public class InfectionManager
     @Subscribe
     public void onGameTick(GameTick tick)
     {
-        // Only host decides infections
+        // reset guard every tick
+        infectionProcessedThisTick = false;
+
+        // only host decides infections
         if (!hostAuthorityManager.isHost())
         {
             return;
@@ -85,11 +90,16 @@ public class InfectionManager
                     continue;
                 }
 
+                if (infectionProcessedThisTick)
+                {
+                    return;
+                }
+
                 WorldPoint victimPos = victim.getWorldLocation();
                 if (attackerPos.distanceTo(victimPos) <= INFECTION_RADIUS_TILES)
                 {
                     infect(attacker.getName(), victim.getName(), states);
-                    return; // one infection per tick is enough
+                    return; // exactly one infection per tick
                 }
             }
         }
@@ -97,12 +107,14 @@ public class InfectionManager
 
     private void infect(String attacker, String victim, Map<String, PlayerState> states)
     {
-        // Update state via party sync
+        infectionProcessedThisTick = true;
+
+        // update state via party sync
         partySyncManager.sendInfectionState(victim, InfectionState.INFECTED);
 
         int healthyLeft = (int) states.values().stream()
                 .filter(s -> s.getInfectionState() == InfectionState.HEALTHY)
-                .count() - 1; // victim just got infected
+                .count() - 1;
 
         client.addChatMessage(
                 ChatMessageType.GAMEMESSAGE,

@@ -4,6 +4,7 @@ import com.sypherred.infectedpartymode.area.AreaManager;
 import com.sypherred.infectedpartymode.model.GameSession;
 import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
+import com.sypherred.infectedpartymode.ui.InfectedPanel;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.eventbus.Subscribe;
@@ -26,6 +27,7 @@ public class PartySyncManager
     private final PartyService partyService;
     private final AreaManager areaManager;
     private final HostAuthorityManager hostAuthorityManager;
+    private final InfectedPanel infectedPanel;
 
     private final GameSession gameSession = new GameSession();
     private final Map<String, PlayerState> playerStates = new HashMap<>();
@@ -36,12 +38,14 @@ public class PartySyncManager
     public PartySyncManager(
             PartyService partyService,
             AreaManager areaManager,
-            HostAuthorityManager hostAuthorityManager
+            HostAuthorityManager hostAuthorityManager,
+            InfectedPanel infectedPanel
     )
     {
         this.partyService = partyService;
         this.areaManager = areaManager;
         this.hostAuthorityManager = hostAuthorityManager;
+        this.infectedPanel = infectedPanel;
     }
 
     /* =========================
@@ -56,6 +60,8 @@ public class PartySyncManager
         if (!inParty)
         {
             hostAuthorityManager.reset();
+            playerStates.clear();
+            infectedPanel.refreshPlayerList();
         }
 
         log.debug("Party changed: inParty={}", inParty);
@@ -213,6 +219,9 @@ public class PartySyncManager
             existing.setInfectionState(state);
             return existing;
         });
+
+        // Always keep UI in sync
+        infectedPanel.refreshPlayerList();
     }
 
     public Map<String, PlayerState> getPlayerStates()
