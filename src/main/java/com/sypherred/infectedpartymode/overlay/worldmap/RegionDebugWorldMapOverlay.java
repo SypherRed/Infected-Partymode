@@ -24,9 +24,10 @@ public class RegionDebugWorldMapOverlay extends Overlay
        Colors
        ========================= */
 
-    private static final Color PREVIEW_COLOR = new Color(0, 180, 255, 180);
-    private static final Color OOB_FILL_COLOR = new Color(255, 0, 0, 45);
-    private static final Color OOB_BORDER_COLOR = new Color(255, 0, 0, 150);
+    private static final Color DEBUG_GRID_COLOR   = new Color(160, 160, 160, 140);
+    private static final Color PREVIEW_COLOR      = new Color(0, 180, 255, 180);
+    private static final Color OOB_FILL_COLOR     = new Color(255, 0, 0, 45);
+    private static final Color OOB_BORDER_COLOR   = new Color(255, 0, 0, 150);
 
     /* =========================
        Region math
@@ -68,14 +69,14 @@ public class RegionDebugWorldMapOverlay extends Overlay
             return null;
         }
 
+        final boolean debugMode   = config.debugShowRegionIds();
         final boolean previewMode = !plugin.isGameRunning();
+
         final Set<Integer> previewRegions = areaManager.getPreviewRegions();
         final Set<Integer> activeRegions  = areaManager.getAllowedRegions();
 
-        // If NOTHING should be shown at all
-        if (!config.debugShowRegionIds()
-                && previewMode
-                && previewRegions.isEmpty())
+        // Nothing to draw at all
+        if (!debugMode && previewMode && previewRegions.isEmpty())
         {
             return null;
         }
@@ -107,14 +108,15 @@ public class RegionDebugWorldMapOverlay extends Overlay
                 boolean isPreview = previewRegions.contains(regionId);
                 boolean isAllowed = activeRegions.contains(regionId);
 
-                // Preview mode → draw ONLY preview regions
-                if (previewMode && !isPreview && !config.debugShowRegionIds())
-                {
-                    continue;
-                }
+                /* =========================
+                   Decide visibility
+                   ========================= */
 
-                // Game running → draw ONLY forbidden regions
-                if (!previewMode && isAllowed)
+                boolean drawPreview = previewMode && isPreview;
+                boolean drawOob     = !previewMode && !isAllowed;
+                boolean drawDebug   = debugMode;
+
+                if (!drawPreview && !drawOob && !drawDebug)
                 {
                     continue;
                 }
@@ -128,12 +130,11 @@ public class RegionDebugWorldMapOverlay extends Overlay
 
                 Rectangle rect = new Rectangle(xPos, yPos, regionPixelSize, regionPixelSize);
 
-                if (previewMode && isPreview)
-                {
-                    graphics.setColor(PREVIEW_COLOR);
-                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
-                }
-                else if (!previewMode)
+                /* =========================
+                   Draw layers
+                   ========================= */
+
+                if (drawOob)
                 {
                     graphics.setColor(OOB_FILL_COLOR);
                     graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -141,8 +142,22 @@ public class RegionDebugWorldMapOverlay extends Overlay
                     graphics.setColor(OOB_BORDER_COLOR);
                     graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
                 }
+                else if (drawPreview)
+                {
+                    graphics.setColor(PREVIEW_COLOR);
+                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                }
+                else if (drawDebug)
+                {
+                    graphics.setColor(DEBUG_GRID_COLOR);
+                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                }
 
-                if (config.debugShowRegionIds())
+                /* =========================
+                   Debug text
+                   ========================= */
+
+                if (debugMode)
                 {
                     String text = String.valueOf(regionId);
                     FontMetrics fm = graphics.getFontMetrics();
