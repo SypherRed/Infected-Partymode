@@ -6,8 +6,14 @@ import javax.inject.Inject;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +39,7 @@ import com.sypherred.infectedpartymode.area.AreaRandomUtil;
 import com.sypherred.infectedpartymode.area.ManualRegionParser;
 import com.sypherred.infectedpartymode.game.GameState;
 import com.sypherred.infectedpartymode.game.GameTimer;
+import com.sypherred.infectedpartymode.model.InfectionMode;
 import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
@@ -124,6 +131,7 @@ public class InfectedPartymodePlugin extends Plugin
 	protected void shutDown()
 	{
 		eventBus.unregister(outOfBoundsManager);
+
 		forceStop();
 
 		overlayManager.remove(arenaRegionShadeOverlay);
@@ -138,14 +146,45 @@ public class InfectedPartymodePlugin extends Plugin
 		}
 	}
 
+	@Subscribe
+	public void onConfigChanged(ConfigChanged e)
+	{
+		if (!"infectedpartymode".equals(e.getGroup()))
+		{
+			return;
+		}
+
+		if (gameState == GameState.IDLE)
+		{
+			buildPreviewFromConfig();
+		}
+
+		infectedPanel.refreshControls();
+	}
+
     /* =========================
        Game Control
        ========================= */
 
-	public void startGame()
+	// Keeping signature for compatibility with your current UI button call.
+	// Duration is now taken from config.
+	public void startGame(int ignoredDurationSeconds)
 	{
 		if (gameState == GameState.RUNNING)
 		{
+			return;
+		}
+
+		Player local = client.getLocalPlayer();
+		if (local == null)
+		{
+			pluginMessage("Local player not ready yet.");
+			return;
+		}
+
+		if (config.arenaMode() == ArenaMode.NONE)
+		{
+			pluginMessage("Please select an arena mode first.");
 			return;
 		}
 
@@ -155,10 +194,14 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		if (config.arenaMode() == ArenaMode.NONE)
+		// Claim host once (party-safe)
+		if (hostAuthorityManager.getHostMemberId() == null)
 		{
-			pluginMessage("Please select an arena mode first.");
-			return;
+			hostAuthorityManager.claimHost();
+			if (partyService.isInParty() && partyService.getLocalMember() != null)
+			{
+				partySyncManager.sendHostClaim(partyService.getLocalMember().getMemberId());
+			}
 		}
 
 		// Commit preview -> active arena
@@ -173,7 +216,7 @@ public class InfectedPartymodePlugin extends Plugin
 
 		if (preview.isEmpty())
 		{
-			pluginMessage("No preview arena available.");
+			pluginMessage("No preview arena available. Check your settings.");
 			return;
 		}
 
@@ -184,36 +227,48 @@ public class InfectedPartymodePlugin extends Plugin
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
-		// =========================
-		// Initial Infection (N random players)
-		// =========================
-		List<PlayerState> candidates =
-				new ArrayList<>(partySyncManager.getPlayerStates().values());
-
-		if (!candidates.isEmpty())
-		{
-			Collections.shuffle(candidates);
-
-			int count = Math.min(
-					config.initialInfectedCount(),
-					candidates.size()
-			);
-
-			for (int i = 0; i < count; i++)
-			{
-				PlayerState ps = candidates.get(i);
-				partySyncManager.sendInfectionState(
-						ps.getPlayerName(),
-						InfectionState.INFECTED
-				);
-			}
-
-			pluginMessage(count + " player(s) have been infected.");
-		}
-
 		if (partyService.isInParty())
 		{
 			partySyncManager.sendArea();
+		}
+
+		// Baseline: ensure everyone we can currently see exists as HEALTHY (unless already tracked)
+		for (Player p : client.getPlayers())
+		{
+			if (p != null && p.getName() != null)
+			{
+				partySyncManager.ensurePlayerHealthy(p.getName());
+			}
+		}
+
+		// =========================
+		// Initial Infection
+		// =========================
+		if (config.infectionMode() == InfectionMode.RANDOM)
+		{
+			List<PlayerState> candidates = new ArrayList<>(partySyncManager.getPlayerStates().values());
+
+			if (!candidates.isEmpty())
+			{
+				Collections.shuffle(candidates);
+
+				int count = Math.min(config.initialInfectedCount(), candidates.size());
+				for (int i = 0; i < count; i++)
+				{
+					PlayerState ps = candidates.get(i);
+					partySyncManager.sendInfectionState(ps.getPlayerName(), InfectionState.INFECTED);
+				}
+
+				pluginMessage(count + " player(s) have been infected.");
+			}
+			else
+			{
+				pluginMessage("No players available to infect yet.");
+			}
+		}
+		else
+		{
+			pluginMessage("Manual infection mode active. No players infected yet.");
 		}
 
 		infectedPanel.refreshControls();
@@ -237,10 +292,140 @@ public class InfectedPartymodePlugin extends Plugin
 		gameTimer.stop();
 
 		areaManager.clearArea();
+
 		buildPreviewFromConfig();
 
 		infectedPanel.refreshControls();
 		pluginMessage("Game stopped.");
+	}
+
+	public void rerollRandomArena()
+	{
+		if (gameState != GameState.IDLE)
+		{
+			pluginMessage("Arena can only be rerolled before the game starts.");
+			return;
+		}
+
+		if (!hostAuthorityManager.isHost())
+		{
+			pluginMessage("Only the host can reroll the arena.");
+			return;
+		}
+
+		if (config.arenaMode() != ArenaMode.RANDOM)
+		{
+			pluginMessage("Reroll is only available in Random mode.");
+			return;
+		}
+
+		generateRandomPreview();
+		infectedPanel.refreshControls();
+		pluginMessage("Arena rerolled.");
+	}
+
+    /* =========================
+       Preview Logic (pre-game)
+       ========================= */
+
+	private void buildPreviewFromConfig()
+	{
+		areaManager.clearArea();
+		areaManager.clearPreview();
+
+		Player local = client.getLocalPlayer();
+		if (local == null)
+		{
+			return;
+		}
+
+		switch (config.arenaMode())
+		{
+			case PRESET:
+				if (config.presetArena().isValid())
+				{
+					areaManager.setPreviewRegions(config.presetArena().getRegions());
+				}
+				break;
+
+			case RANDOM:
+				generateRandomPreview();
+				break;
+
+			case MANUAL:
+				Set<Integer> manual = ManualRegionParser.parse(config.manualRegions());
+				if (!manual.isEmpty())
+				{
+					areaManager.setPreviewRegions(manual);
+				}
+				break;
+
+			case CURRENT_PLUS_N:
+				int start = local.getWorldLocation().getRegionID();
+				areaManager.setPreviewRegions(buildConnectedRegionCluster(start, config.regionCount()));
+				break;
+
+			case NONE:
+			default:
+				break;
+		}
+	}
+
+	private void generateRandomPreview()
+	{
+		Player local = client.getLocalPlayer();
+		if (local == null)
+		{
+			return;
+		}
+
+		int start = AreaRandomUtil.randomRegionAnywhere(client);
+		areaManager.setPreviewRegions(buildConnectedRegionCluster(start, config.regionCount()));
+	}
+
+	private static Set<Integer> buildConnectedRegionCluster(int startRegionId, int regionCount)
+	{
+		if (regionCount < 1)
+		{
+			regionCount = 1;
+		}
+
+		Set<Integer> regions = new HashSet<>();
+		regions.add(startRegionId);
+
+		Queue<Integer> frontier = new LinkedList<>();
+		frontier.add(startRegionId);
+
+		while (!frontier.isEmpty() && regions.size() < regionCount)
+		{
+			int regionId = frontier.poll();
+
+			int rx = regionId >> 8;
+			int ry = regionId & 0xFF;
+
+			int[][] neighbors = {
+					{rx + 1, ry},
+					{rx - 1, ry},
+					{rx, ry + 1},
+					{rx, ry - 1}
+			};
+
+			for (int[] n : neighbors)
+			{
+				int neighborId = (n[0] << 8) | n[1];
+
+				if (regions.add(neighborId))
+				{
+					frontier.add(neighborId);
+					if (regions.size() >= regionCount)
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		return regions;
 	}
 
     /* =========================
@@ -262,94 +447,32 @@ public class InfectedPartymodePlugin extends Plugin
 	}
 
     /* =========================
-       Helpers
+       Accessors
        ========================= */
 
-	private void buildPreviewFromConfig()
+	public boolean isGameRunning()
 	{
-		areaManager.clearArea();
-		areaManager.clearPreview();
-
-		switch (config.arenaMode())
-		{
-			case RANDOM:
-				generateRandomPreview();
-				break;
-			case MANUAL:
-				Set<Integer> manual = ManualRegionParser.parse(config.manualRegions());
-				if (!manual.isEmpty())
-				{
-					areaManager.setPreviewRegions(manual);
-				}
-				break;
-			case CURRENT_PLUS_N:
-				Player local = client.getLocalPlayer();
-				if (local != null)
-				{
-					areaManager.setPreviewRegions(
-							buildConnectedRegionCluster(
-									local.getWorldLocation().getRegionID(),
-									config.regionCount()
-							)
-					);
-				}
-				break;
-			case PRESET:
-				if (config.presetArena().isValid())
-				{
-					areaManager.setPreviewRegions(config.presetArena().getRegions());
-				}
-				break;
-			case NONE:
-			default:
-				break;
-		}
+		return gameState == GameState.RUNNING;
 	}
 
-	private void generateRandomPreview()
+	public ArenaMode getArenaMode()
 	{
-		int start = AreaRandomUtil.randomRegionAnywhere(client);
-		areaManager.setPreviewRegions(
-				buildConnectedRegionCluster(start, config.regionCount())
-		);
+		return config.arenaMode();
 	}
 
-	private static Set<Integer> buildConnectedRegionCluster(int startRegionId, int regionCount)
+	public int getActiveRegionCount()
 	{
-		Set<Integer> regions = new HashSet<>();
-		Queue<Integer> frontier = new LinkedList<>();
-
-		regions.add(startRegionId);
-		frontier.add(startRegionId);
-
-		while (!frontier.isEmpty() && regions.size() < regionCount)
-		{
-			int regionId = frontier.poll();
-			int rx = regionId >> 8;
-			int ry = regionId & 0xFF;
-
-			int[][] neighbors = {
-					{rx + 1, ry},
-					{rx - 1, ry},
-					{rx, ry + 1},
-					{rx, ry - 1}
-			};
-
-			for (int[] n : neighbors)
-			{
-				int neighborId = (n[0] << 8) | n[1];
-				if (regions.add(neighborId))
-				{
-					frontier.add(neighborId);
-					if (regions.size() >= regionCount)
-					{
-						break;
-					}
-				}
-			}
-		}
-		return regions;
+		return areaManager.getAllowedRegions().size();
 	}
+
+	public int getRemainingSeconds()
+	{
+		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
+	}
+
+    /* =========================
+       Chat
+       ========================= */
 
 	private void pluginMessage(String msg)
 	{
@@ -364,10 +487,12 @@ public class InfectedPartymodePlugin extends Plugin
 	private void forceStop()
 	{
 		gameState = GameState.IDLE;
+
 		if (gameTimer != null)
 		{
 			gameTimer.stop();
 		}
+
 		areaManager.clearArea();
 		areaManager.clearPreview();
 	}

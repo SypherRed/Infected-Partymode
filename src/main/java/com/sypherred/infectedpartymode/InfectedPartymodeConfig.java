@@ -8,6 +8,7 @@ import net.runelite.client.config.Range;
 
 import com.sypherred.infectedpartymode.area.ArenaMode;
 import com.sypherred.infectedpartymode.area.PresetArena;
+import com.sypherred.infectedpartymode.model.InfectionMode;
 
 @ConfigGroup("infectedpartymode")
 public interface InfectedPartymodeConfig extends Config
@@ -97,11 +98,23 @@ public interface InfectedPartymodeConfig extends Config
     }
 
     @ConfigItem(
-            keyName = "initialInfectedCount",
-            name = "Initial Infected Players",
-            description = "Number of players that start infected",
+            keyName = "infectionMode",
+            name = "Infection Mode",
+            description = "How initial infected players are selected",
             section = gameSection,
             position = 1
+    )
+    default InfectionMode infectionMode()
+    {
+        return InfectionMode.RANDOM;
+    }
+
+    @ConfigItem(
+            keyName = "initialInfectedCount",
+            name = "Initial Infected Players",
+            description = "Number of players that start infected (Random mode only)",
+            section = gameSection,
+            position = 2
     )
     @Range(min = 1, max = 10)
     default int initialInfectedCount()

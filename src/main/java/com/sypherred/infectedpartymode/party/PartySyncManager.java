@@ -61,7 +61,7 @@ public class PartySyncManager
         {
             hostAuthorityManager.reset();
             playerStates.clear();
-            eventBus.post(PlayerStatesUpdated.INSTANCE);
+            postStatesUpdated();
         }
 
         log.debug("Party changed: inParty={}", inParty);
@@ -86,6 +86,23 @@ public class PartySyncManager
     {
         updateLocalState(playerName, state);
         sendPartyString("INFECT|" + playerName + "|" + state.name());
+    }
+
+    /**
+     * Ensures a player exists in the local state map (default HEALTHY).
+     */
+    public void ensurePlayerHealthy(String playerName)
+    {
+        if (playerName == null || playerName.trim().isEmpty())
+        {
+            return;
+        }
+
+        if (!playerStates.containsKey(playerName))
+        {
+            playerStates.put(playerName, new PlayerState(playerName, InfectionState.HEALTHY));
+            postStatesUpdated();
+        }
     }
 
     /* =========================
@@ -153,10 +170,11 @@ public class PartySyncManager
             case "INFECT":
                 if (parts.length >= 3)
                 {
+                    String player = parts[1];
                     InfectionState state = safeInfectionState(parts[2]);
                     if (state != null)
                     {
-                        updateLocalState(parts[1], state);
+                        updateLocalState(player, state);
                     }
                 }
                 break;
@@ -219,8 +237,7 @@ public class PartySyncManager
             return existing;
         });
 
-        // Notify UI listeners
-        eventBus.post(PlayerStatesUpdated.INSTANCE);
+        postStatesUpdated();
     }
 
     public Map<String, PlayerState> getPlayerStates()
@@ -231,6 +248,12 @@ public class PartySyncManager
     public GameSession getGameSession()
     {
         return gameSession;
+    }
+
+    private void postStatesUpdated()
+    {
+        // PlayerStatesUpdated is an enum in your project -> post INSTANCE, not new(...)
+        eventBus.post(PlayerStatesUpdated.INSTANCE);
     }
 
     /* =========================
