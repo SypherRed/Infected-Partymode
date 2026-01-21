@@ -39,6 +39,7 @@ import com.sypherred.infectedpartymode.game.GameTimer;
 import com.sypherred.infectedpartymode.overlay.ArenaRegionShadeOverlay;
 import com.sypherred.infectedpartymode.overlay.GameInfoOverlay;
 import com.sypherred.infectedpartymode.overlay.worldmap.RegionDebugWorldMapOverlay;
+import com.sypherred.infectedpartymode.overlay.OutOfBoundsOverlay;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.rules.OutOfBoundsManager;
@@ -75,6 +76,7 @@ public class InfectedPartymodePlugin extends Plugin
 	@Inject private ArenaRegionShadeOverlay arenaRegionShadeOverlay;
 	@Inject private GameInfoOverlay gameInfoOverlay;
 	@Inject private RegionDebugWorldMapOverlay regionDebugWorldMapOverlay;
+	@Inject private OutOfBoundsOverlay outOfBoundsOverlay;
 
 	private GameState gameState = GameState.IDLE;
 	private GameTimer gameTimer;
@@ -95,6 +97,7 @@ public class InfectedPartymodePlugin extends Plugin
 		overlayManager.add(arenaRegionShadeOverlay);
 		overlayManager.add(gameInfoOverlay);
 		overlayManager.add(regionDebugWorldMapOverlay);
+		overlayManager.add(outOfBoundsOverlay);
 
 		// Build initial PREVIEW (pre-game)
 		buildPreviewFromConfig();
@@ -130,6 +133,7 @@ public class InfectedPartymodePlugin extends Plugin
 		overlayManager.remove(arenaRegionShadeOverlay);
 		overlayManager.remove(gameInfoOverlay);
 		overlayManager.remove(regionDebugWorldMapOverlay);
+		overlayManager.remove(outOfBoundsOverlay);
 
 		if (navButton != null)
 		{

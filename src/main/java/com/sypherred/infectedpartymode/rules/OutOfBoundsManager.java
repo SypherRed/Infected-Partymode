@@ -11,11 +11,13 @@ import net.runelite.client.eventbus.Subscribe;
 import javax.inject.Inject;
 
 /**
- * Checks whether the local player leaves the active region-based arena.
+ * Tracks whether the local player is outside the active arena
+ * and provides escalation state for visual feedback.
  */
 public class OutOfBoundsManager
 {
-    private static final int GRACE_TICKS = 5; // ~3 seconds
+    private static final int GRACE_TICKS = 5;   // ~3 seconds
+    private static final int DANGER_TICKS = 12; // ~7 seconds
     private static final String PREFIX = "[Infected] ";
 
     private final Client client;
@@ -35,14 +37,7 @@ public class OutOfBoundsManager
     public void onGameTick(GameTick tick)
     {
         Player local = client.getLocalPlayer();
-        if (local == null)
-        {
-            reset();
-            return;
-        }
-
-        // No active arena → no checks
-        if (!areaManager.hasActiveArea())
+        if (local == null || !areaManager.hasActiveArea())
         {
             reset();
             return;
@@ -50,14 +45,13 @@ public class OutOfBoundsManager
 
         WorldPoint wp = local.getWorldLocation();
 
-        // Player is inside allowed region(s)
         if (areaManager.isInsideArea(wp))
         {
             reset();
             return;
         }
 
-        // Player is outside
+        // Player is outside the arena
         outOfBoundsTicks++;
 
         if (outOfBoundsTicks >= GRACE_TICKS && !warned)
@@ -76,5 +70,24 @@ public class OutOfBoundsManager
     {
         outOfBoundsTicks = 0;
         warned = false;
+    }
+
+    /* =========================
+       Overlay state accessors
+       ========================= */
+
+    public boolean isOutOfBounds()
+    {
+        return outOfBoundsTicks > 0;
+    }
+
+    public boolean isDanger()
+    {
+        return outOfBoundsTicks >= DANGER_TICKS;
+    }
+
+    public int getOutOfBoundsTicks()
+    {
+        return outOfBoundsTicks;
     }
 }
