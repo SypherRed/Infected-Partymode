@@ -398,9 +398,14 @@ public class InfectedPartymodePlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		if (gameState == GameState.RUNNING && gameTimer.getRemainingSeconds() <= 0)
+		if (gameState == GameState.RUNNING)
 		{
-			stopGame();
+			infectedPanel.refreshControls();
+
+			if (gameTimer.getRemainingSeconds() <= 0)
+			{
+				stopGame();
+			}
 		}
 	}
 

@@ -21,7 +21,7 @@ public class OutOfBoundsOverlay extends Overlay
         this.outOfBoundsManager = outOfBoundsManager;
 
         setPosition(OverlayPosition.DYNAMIC);
-        setLayer(OverlayLayer.ABOVE_WIDGETS);
+        setLayer(OverlayLayer.ALWAYS_ON_TOP);
     }
 
     @Override
@@ -32,17 +32,15 @@ public class OutOfBoundsOverlay extends Overlay
             return null;
         }
 
-        Rectangle bounds = graphics.getClipBounds();
-        if (bounds == null)
-        {
-            return null;
-        }
+        // Use full canvas size instead of clip bounds (more reliable)
+        Rectangle bounds = graphics.getDeviceConfiguration()
+                .getBounds();
 
-        // Escalate intensity if danger
-        int alpha = outOfBoundsManager.isDanger() ? 90 : 45;
+        // Stronger, clearly visible escalation
+        int alpha = outOfBoundsManager.isDanger() ? 130 : 70;
 
         graphics.setColor(new Color(255, 0, 0, alpha));
-        graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        graphics.fillRect(0, 0, bounds.width, bounds.height);
 
         return null;
     }

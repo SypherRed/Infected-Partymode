@@ -10,6 +10,7 @@ import com.sypherred.infectedpartymode.party.PlayerStatesUpdated;
 
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.inject.Inject;
@@ -47,10 +48,11 @@ public class InfectedPanel extends PluginPanel
         this.eventBus = eventBus;
 
         setLayout(new BorderLayout(0, 8));
+        setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         add(buildStatusPanel(), BorderLayout.NORTH);
-        add(buildControlPanel(), BorderLayout.CENTER);
-        add(buildPlayerList(), BorderLayout.SOUTH);
+        add(buildControlPanel(), BorderLayout.SOUTH);
+        add(buildPlayerList(), BorderLayout.CENTER);
 
         eventBus.register(this);
 
@@ -74,7 +76,8 @@ public class InfectedPanel extends PluginPanel
     private JPanel buildStatusPanel()
     {
         JPanel panel = new JPanel(new GridLayout(3, 1, 0, 4));
-        panel.setBorder(BorderFactory.createTitledBorder("Game Status"));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
         gameStatusLabel = new JLabel();
         hostLabel = new JLabel();
@@ -91,7 +94,8 @@ public class InfectedPanel extends PluginPanel
     {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder("Game Control"));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        panel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
         startGame = new JButton("▶ Start Game (10 min)");
         startGame.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -129,12 +133,15 @@ public class InfectedPanel extends PluginPanel
     private JScrollPane buildPlayerList()
     {
         playerListPanel.setLayout(new BoxLayout(playerListPanel, BoxLayout.Y_AXIS));
-        playerListPanel.setBorder(BorderFactory.createTitledBorder("Players"));
+        playerListPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        playerListPanel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
         refreshPlayerList();
 
         JScrollPane scrollPane = new JScrollPane(playerListPanel);
-        scrollPane.setBorder(null);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
+
         return scrollPane;
     }
 
@@ -148,10 +155,12 @@ public class InfectedPanel extends PluginPanel
 
         JPanel healthyPanel = new JPanel();
         healthyPanel.setLayout(new BoxLayout(healthyPanel, BoxLayout.Y_AXIS));
+        healthyPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         healthyPanel.setBorder(BorderFactory.createTitledBorder("Healthy Players"));
 
         JPanel infectedPanel = new JPanel();
         infectedPanel.setLayout(new BoxLayout(infectedPanel, BoxLayout.Y_AXIS));
+        infectedPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         infectedPanel.setBorder(BorderFactory.createTitledBorder("Infected Players"));
 
         for (PlayerState state : partySyncManager.getPlayerStates().values())
@@ -169,7 +178,7 @@ public class InfectedPanel extends PluginPanel
         }
 
         playerListPanel.add(healthyPanel);
-        playerListPanel.add(Box.createVerticalStrut(6));
+        playerListPanel.add(Box.createVerticalStrut(8));
         playerListPanel.add(infectedPanel);
 
         playerListPanel.revalidate();
