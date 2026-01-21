@@ -24,7 +24,7 @@ public class RegionDebugWorldMapOverlay extends Overlay
        Colors
        ========================= */
 
-    private static final Color DEBUG_GRID_COLOR   = new Color(160, 160, 160, 140);
+    private static final Color DEBUG_FILL_COLOR   = new Color(160, 160, 160, 140);
     private static final Color PREVIEW_COLOR      = new Color(0, 180, 255, 180);
     private static final Color OOB_FILL_COLOR     = new Color(255, 0, 0, 45);
     private static final Color OOB_BORDER_COLOR   = new Color(255, 0, 0, 150);
@@ -149,8 +149,8 @@ public class RegionDebugWorldMapOverlay extends Overlay
                 }
                 else if (drawDebug)
                 {
-                    graphics.setColor(DEBUG_GRID_COLOR);
-                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                    graphics.setColor(DEBUG_FILL_COLOR);
+                    graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
                 }
 
                 /* =========================
