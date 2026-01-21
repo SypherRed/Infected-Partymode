@@ -73,6 +73,43 @@ public interface InfectedPartymodeConfig extends Config
     }
 
     /* =========================
+       Game
+       ========================= */
+
+    @ConfigSection(
+            name = "Game",
+            description = "Game rules and duration",
+            position = 10
+    )
+    String gameSection = "game";
+
+    @ConfigItem(
+            keyName = "gameDurationMinutes",
+            name = "Game Duration (Minutes)",
+            description = "Total duration of the game in minutes",
+            section = gameSection,
+            position = 0
+    )
+    @Range(min = 1, max = 60)
+    default int gameDurationMinutes()
+    {
+        return 10;
+    }
+
+    @ConfigItem(
+            keyName = "initialInfectedCount",
+            name = "Initial Infected Players",
+            description = "Number of players that start infected",
+            section = gameSection,
+            position = 1
+    )
+    @Range(min = 1, max = 10)
+    default int initialInfectedCount()
+    {
+        return 1;
+    }
+
+    /* =========================
        Debug
        ========================= */
 
