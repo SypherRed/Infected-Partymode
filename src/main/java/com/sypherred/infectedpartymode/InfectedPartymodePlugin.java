@@ -424,6 +424,11 @@ public class InfectedPartymodePlugin extends Plugin
 		return areaManager.getAllowedRegions().size();
 	}
 
+	public int getRemainingSeconds()
+	{
+		return gameTimer != null ? gameTimer.getRemainingSeconds() : 0;
+	}
+
 	/* =========================
 	   Chat
 	   ========================= */

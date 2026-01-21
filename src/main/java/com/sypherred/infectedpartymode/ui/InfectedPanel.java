@@ -2,6 +2,7 @@ package com.sypherred.infectedpartymode.ui;
 
 import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.model.PlayerState;
 import com.sypherred.infectedpartymode.area.ArenaMode;
 
@@ -15,33 +16,53 @@ public class InfectedPanel extends PluginPanel
 {
     private final InfectedPartymodePlugin plugin;
     private final PartySyncManager partySyncManager;
+    private final HostAuthorityManager hostAuthorityManager;
 
     private JButton startGame;
     private JButton rerollArena;
     private JButton stopGame;
+
+    private JLabel gameStatusLabel;
+    private JLabel hostLabel;
+    private JLabel timerLabel;
 
     private final JPanel playerListPanel = new JPanel();
 
     @Inject
     public InfectedPanel(
             InfectedPartymodePlugin plugin,
-            PartySyncManager partySyncManager
+            PartySyncManager partySyncManager,
+            HostAuthorityManager hostAuthorityManager
     )
     {
         this.plugin = plugin;
         this.partySyncManager = partySyncManager;
+        this.hostAuthorityManager = hostAuthorityManager;
 
         setLayout(new BorderLayout(0, 8));
 
-        add(buildControlPanel(), BorderLayout.NORTH);
-        add(buildPlayerList(), BorderLayout.CENTER);
+        add(buildStatusPanel(), BorderLayout.NORTH);
+        add(buildControlPanel(), BorderLayout.CENTER);
+        add(buildPlayerList(), BorderLayout.SOUTH);
 
         refreshControls();
     }
 
-    /* =========================
-       Control Panel
-       ========================= */
+    private JPanel buildStatusPanel()
+    {
+        JPanel panel = new JPanel(new GridLayout(3, 1, 0, 4));
+        panel.setBorder(BorderFactory.createTitledBorder("Game Status"));
+
+        gameStatusLabel = new JLabel();
+        hostLabel = new JLabel();
+        timerLabel = new JLabel();
+
+        panel.add(gameStatusLabel);
+        panel.add(hostLabel);
+        panel.add(timerLabel);
+
+        return panel;
+    }
 
     private JPanel buildControlPanel()
     {
@@ -51,7 +72,6 @@ public class InfectedPanel extends PluginPanel
 
         startGame = new JButton("▶ Start Game (10 min)");
         startGame.setAlignmentX(Component.CENTER_ALIGNMENT);
-        startGame.setToolTipText("Start the game with the selected arena settings");
         startGame.addActionListener(e ->
         {
             plugin.startGame(600);
@@ -60,7 +80,6 @@ public class InfectedPanel extends PluginPanel
 
         rerollArena = new JButton("🎲 Reroll Arena");
         rerollArena.setAlignmentX(Component.CENTER_ALIGNMENT);
-        rerollArena.setToolTipText("Generate a new random arena (Random mode only)");
         rerollArena.addActionListener(e ->
         {
             plugin.rerollRandomArena();
@@ -69,7 +88,6 @@ public class InfectedPanel extends PluginPanel
 
         stopGame = new JButton("■ Stop Game");
         stopGame.setAlignmentX(Component.CENTER_ALIGNMENT);
-        stopGame.setToolTipText("Stop the running game");
         stopGame.addActionListener(e ->
         {
             plugin.stopGame();
@@ -84,10 +102,6 @@ public class InfectedPanel extends PluginPanel
 
         return panel;
     }
-
-    /* =========================
-       Player List
-       ========================= */
 
     private JScrollPane buildPlayerList()
     {
@@ -104,27 +118,55 @@ public class InfectedPanel extends PluginPanel
     public void refreshPlayerList()
     {
         playerListPanel.removeAll();
-
         for (PlayerState state : partySyncManager.getPlayerStates().values())
         {
             playerListPanel.add(new PlayerRow(state, partySyncManager));
         }
-
         playerListPanel.revalidate();
         playerListPanel.repaint();
     }
-
-    /* =========================
-       State Reflection
-       ========================= */
 
     public void refreshControls()
     {
         boolean running = plugin.isGameRunning();
         ArenaMode mode = plugin.getArenaMode();
 
-        startGame.setEnabled(!running && mode != ArenaMode.NONE);
-        rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM);
-        stopGame.setEnabled(running);
+        startGame.setEnabled(!running && mode != ArenaMode.NONE && hostAuthorityManager.isHost());
+        rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && hostAuthorityManager.isHost());
+        stopGame.setEnabled(running && hostAuthorityManager.isHost());
+
+        if (running)
+        {
+            gameStatusLabel.setText("Status: RUNNING");
+            gameStatusLabel.setForeground(Color.GREEN.darker());
+        }
+        else if (mode != ArenaMode.NONE)
+        {
+            gameStatusLabel.setText("Status: PREVIEW");
+            gameStatusLabel.setForeground(Color.ORANGE.darker());
+        }
+        else
+        {
+            gameStatusLabel.setText("Status: STOPPED");
+            gameStatusLabel.setForeground(Color.GRAY);
+        }
+
+        hostLabel.setText(
+                hostAuthorityManager.isHost()
+                        ? "Role: HOST 👑"
+                        : "Role: PLAYER"
+        );
+
+        int seconds = plugin.getRemainingSeconds();
+        timerLabel.setText(
+                seconds > 0
+                        ? "Time Left: " + formatTime(seconds)
+                        : "Time Left: --:--"
+        );
+    }
+
+    private String formatTime(int seconds)
+    {
+        return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 }
