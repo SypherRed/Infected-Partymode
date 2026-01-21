@@ -1,6 +1,7 @@
 package com.sypherred.infectedpartymode.rules;
 
 import com.sypherred.infectedpartymode.party.PartySyncManager;
+import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.model.PlayerState;
 
@@ -16,103 +17,99 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Handles infection spread between players.
+ * Host-authoritative infection handling.
  */
 public class InfectionManager
 {
     private static final int INFECTION_RADIUS_TILES = 1;
-    private static final int REQUIRED_TICKS = 3;
     private static final String PREFIX = "[Infected] ";
 
     private final Client client;
     private final PartySyncManager partySyncManager;
-
-    private int nearInfectedTicks = 0;
+    private final HostAuthorityManager hostAuthorityManager;
 
     @Inject
     public InfectionManager(
             Client client,
-            PartySyncManager partySyncManager
+            PartySyncManager partySyncManager,
+            HostAuthorityManager hostAuthorityManager
     )
     {
         this.client = client;
         this.partySyncManager = partySyncManager;
+        this.hostAuthorityManager = hostAuthorityManager;
     }
 
     @Subscribe
     public void onGameTick(GameTick tick)
     {
-        Player local = client.getLocalPlayer();
-        if (local == null)
+        // Only host decides infections
+        if (!hostAuthorityManager.isHost())
         {
-            nearInfectedTicks = 0;
             return;
         }
 
         Map<String, PlayerState> states = partySyncManager.getPlayerStates();
-        PlayerState localState = states.get(local.getName());
-
-        // Only healthy players can get infected
-        if (localState == null || localState.getInfectionState() != InfectionState.HEALTHY)
+        if (states.isEmpty())
         {
-            nearInfectedTicks = 0;
             return;
         }
 
         List<Player> players = client.getPlayers();
-        WorldPoint localPos = local.getWorldLocation();
 
-        boolean nearInfected = false;
-
-        for (Player p : players)
+        for (Player attacker : players)
         {
-            if (p == null || p == local)
+            if (attacker == null)
             {
                 continue;
             }
 
-            PlayerState otherState = states.get(p.getName());
-            if (otherState == null || otherState.getInfectionState() != InfectionState.INFECTED)
+            PlayerState attackerState = states.get(attacker.getName());
+            if (attackerState == null || attackerState.getInfectionState() != InfectionState.INFECTED)
             {
                 continue;
             }
 
-            WorldPoint otherPos = p.getWorldLocation();
-            if (localPos.distanceTo(otherPos) <= INFECTION_RADIUS_TILES)
-            {
-                nearInfected = true;
-                break;
-            }
-        }
+            WorldPoint attackerPos = attacker.getWorldLocation();
 
-        if (nearInfected)
-        {
-            nearInfectedTicks++;
-
-            if (nearInfectedTicks >= REQUIRED_TICKS)
+            for (Player victim : players)
             {
-                infectLocalPlayer(local.getName());
-                nearInfectedTicks = 0;
+                if (victim == null || victim == attacker)
+                {
+                    continue;
+                }
+
+                PlayerState victimState = states.get(victim.getName());
+                if (victimState == null || victimState.getInfectionState() != InfectionState.HEALTHY)
+                {
+                    continue;
+                }
+
+                WorldPoint victimPos = victim.getWorldLocation();
+                if (attackerPos.distanceTo(victimPos) <= INFECTION_RADIUS_TILES)
+                {
+                    infect(attacker.getName(), victim.getName(), states);
+                    return; // one infection per tick is enough
+                }
             }
-        }
-        else
-        {
-            nearInfectedTicks = 0;
         }
     }
 
-    private void infectLocalPlayer(String playerName)
+    private void infect(String attacker, String victim, Map<String, PlayerState> states)
     {
+        // Update state via party sync
+        partySyncManager.sendInfectionState(victim, InfectionState.INFECTED);
+
+        int healthyLeft = (int) states.values().stream()
+                .filter(s -> s.getInfectionState() == InfectionState.HEALTHY)
+                .count() - 1; // victim just got infected
+
         client.addChatMessage(
                 ChatMessageType.GAMEMESSAGE,
                 "",
-                PREFIX + "You got infected!",
+                PREFIX + attacker + " has infected " + victim +
+                        ". There are " + healthyLeft + " healthy players left.",
                 null
-        );
-
-        partySyncManager.sendInfectionState(
-                playerName,
-                InfectionState.INFECTED
         );
     }
 }

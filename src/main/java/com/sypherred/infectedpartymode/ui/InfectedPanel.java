@@ -1,6 +1,7 @@
 package com.sypherred.infectedpartymode.ui;
 
 import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
+import com.sypherred.infectedpartymode.model.InfectionState;
 import com.sypherred.infectedpartymode.party.PartySyncManager;
 import com.sypherred.infectedpartymode.party.HostAuthorityManager;
 import com.sypherred.infectedpartymode.model.PlayerState;
@@ -118,10 +119,33 @@ public class InfectedPanel extends PluginPanel
     public void refreshPlayerList()
     {
         playerListPanel.removeAll();
+
+        JPanel healthyPanel = new JPanel();
+        healthyPanel.setLayout(new BoxLayout(healthyPanel, BoxLayout.Y_AXIS));
+        healthyPanel.setBorder(BorderFactory.createTitledBorder("Healthy Players"));
+
+        JPanel infectedPanel = new JPanel();
+        infectedPanel.setLayout(new BoxLayout(infectedPanel, BoxLayout.Y_AXIS));
+        infectedPanel.setBorder(BorderFactory.createTitledBorder("Infected Players"));
+
         for (PlayerState state : partySyncManager.getPlayerStates().values())
         {
-            playerListPanel.add(new PlayerRow(state, partySyncManager));
+            PlayerRow row = new PlayerRow(state);
+
+            if (state.getInfectionState() == InfectionState.INFECTED)
+            {
+                infectedPanel.add(row);
+            }
+            else
+            {
+                healthyPanel.add(row);
+            }
         }
+
+        playerListPanel.add(healthyPanel);
+        playerListPanel.add(Box.createVerticalStrut(6));
+        playerListPanel.add(infectedPanel);
+
         playerListPanel.revalidate();
         playerListPanel.repaint();
     }
