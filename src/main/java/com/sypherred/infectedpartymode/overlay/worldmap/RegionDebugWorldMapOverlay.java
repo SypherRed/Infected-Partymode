@@ -145,7 +145,7 @@ public class RegionDebugWorldMapOverlay extends Overlay
                 else if (drawPreview)
                 {
                     graphics.setColor(PREVIEW_COLOR);
-                    graphics.drawRect(rect.x, rect.y, rect.width, rect.height);
+                    graphics.fillRect(rect.x, rect.y, rect.width, rect.height);
                 }
                 else if (drawDebug)
                 {
