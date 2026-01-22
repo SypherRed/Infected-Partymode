@@ -77,7 +77,6 @@ public class GameInfoOverlay extends Overlay
                         .build()
         );
 
-        // Remaining time nur anzeigen, wenn Spiel läuft
         if (session != null && session.isRunning())
         {
             long remainingMillis = session.getRemainingMillis();

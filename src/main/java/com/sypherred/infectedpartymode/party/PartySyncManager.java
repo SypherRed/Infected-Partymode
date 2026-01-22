@@ -9,13 +9,16 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.PartyChanged;
+import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.messages.PartyChatMessage;
 
 import javax.inject.Inject;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -67,6 +70,55 @@ public class PartySyncManager
         log.debug("Party changed: inParty={}", inParty);
     }
 
+    /* =========================
+       Initialization
+       ========================= */
+
+    /**
+     * Initializes all current party members as HEALTHY.
+     * Call once when the game starts (host-side).
+     */
+    public void initializePlayersFromParty()
+    {
+        if (!inParty)
+        {
+            return;
+        }
+
+        Collection<PartyMember> members = partyService.getMembers();
+        if (members == null || members.isEmpty())
+        {
+            return;
+        }
+
+        boolean changed = false;
+
+        for (PartyMember member : members)
+        {
+            if (member == null)
+            {
+                continue;
+            }
+
+            String name = member.getDisplayName();
+            if (name == null || name.isEmpty())
+            {
+                continue;
+            }
+
+            if (!playerStates.containsKey(name))
+            {
+                playerStates.put(name, new PlayerState(name, InfectionState.HEALTHY));
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            postStatesUpdated();
+        }
+    }
+
     private void sendPartyString(String payload)
     {
         if (!inParty)
@@ -86,23 +138,6 @@ public class PartySyncManager
     {
         updateLocalState(playerName, state);
         sendPartyString("INFECT|" + playerName + "|" + state.name());
-    }
-
-    /**
-     * Ensures a player exists in the local state map (default HEALTHY).
-     */
-    public void ensurePlayerHealthy(String playerName)
-    {
-        if (playerName == null || playerName.trim().isEmpty())
-        {
-            return;
-        }
-
-        if (!playerStates.containsKey(playerName))
-        {
-            playerStates.put(playerName, new PlayerState(playerName, InfectionState.HEALTHY));
-            postStatesUpdated();
-        }
     }
 
     /* =========================
@@ -252,7 +287,6 @@ public class PartySyncManager
 
     private void postStatesUpdated()
     {
-        // PlayerStatesUpdated is an enum in your project -> post INSTANCE, not new(...)
         eventBus.post(PlayerStatesUpdated.INSTANCE);
     }
 
