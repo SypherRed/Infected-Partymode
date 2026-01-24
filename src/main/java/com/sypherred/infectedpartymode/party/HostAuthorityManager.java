@@ -106,10 +106,13 @@ public class HostAuthorityManager
      */
     public void onHostClaim(long memberId)
     {
-        if (hostMemberId == null)
+        // Host already exists → ignore
+        if (hostMemberId != null)
         {
-            hostMemberId = memberId;
+            return;
         }
+
+        hostMemberId = memberId;
     }
 
     /**

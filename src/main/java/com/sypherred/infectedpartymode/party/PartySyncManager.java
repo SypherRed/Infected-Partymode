@@ -68,6 +68,12 @@ public class PartySyncManager
         }
     }
 
+    /** 🔹 UI / Plugin helper */
+    public boolean isInParty()
+    {
+        return inParty;
+    }
+
     private boolean allowHostSend()
     {
         return !inParty || hostAuthorityManager.isHost();

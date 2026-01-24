@@ -10,6 +10,7 @@ import com.sypherred.infectedpartymode.party.PlayerStatesUpdated;
 
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.PartyChanged;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.PluginPanel;
@@ -38,6 +39,12 @@ public class InfectedPanel extends PluginPanel
 
     @Inject
     private PartyService partyService;
+
+    @Subscribe
+    public void onPartyChanged(PartyChanged e)
+    {
+        refreshControls();
+    }
 
     @Inject
     public InfectedPanel(
@@ -210,7 +217,10 @@ public class InfectedPanel extends PluginPanel
         boolean isHost = hostAuthorityManager.isHost();
         boolean hasHost = hostAuthorityManager.hasHost();
 
-        claimHost.setVisible(!isHost && !hasHost);
+        claimHost.setVisible(
+                partySyncManager.isInParty()
+                        && !hasHost
+        );
 
         startGame.setEnabled(!running && mode != ArenaMode.NONE && isHost);
         rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && isHost);
