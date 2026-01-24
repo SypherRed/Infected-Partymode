@@ -10,6 +10,8 @@ import com.sypherred.infectedpartymode.party.PlayerStatesUpdated;
 
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.party.PartyMember;
+import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.inject.Inject;
@@ -23,6 +25,7 @@ public class InfectedPanel extends PluginPanel
     private final HostAuthorityManager hostAuthorityManager;
     private final EventBus eventBus;
 
+    private JButton claimHost;
     private JButton startGame;
     private JButton rerollArena;
     private JButton stopGame;
@@ -32,6 +35,9 @@ public class InfectedPanel extends PluginPanel
     private JLabel timerLabel;
 
     private final JPanel playerListPanel = new JPanel();
+
+    @Inject
+    private PartyService partyService;
 
     @Inject
     public InfectedPanel(
@@ -93,6 +99,21 @@ public class InfectedPanel extends PluginPanel
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createTitledBorder("Game Control"));
 
+        claimHost = new JButton("👑 Claim Host");
+        claimHost.setAlignmentX(Component.CENTER_ALIGNMENT);
+        claimHost.addActionListener(e ->
+        {
+            hostAuthorityManager.claimHost();
+
+            PartyMember local = partyService.getLocalMember();
+            if (local != null)
+            {
+                partySyncManager.sendHostClaim(local.getMemberId());
+            }
+
+            refreshControls();
+        });
+
         startGame = new JButton("▶ Start Game (10 min)");
         startGame.setAlignmentX(Component.CENTER_ALIGNMENT);
         startGame.addActionListener(e ->
@@ -117,6 +138,8 @@ public class InfectedPanel extends PluginPanel
             refreshControls();
         });
 
+        panel.add(claimHost);
+        panel.add(Box.createVerticalStrut(6));
         panel.add(startGame);
         panel.add(Box.createVerticalStrut(6));
         panel.add(rerollArena);
@@ -184,10 +207,14 @@ public class InfectedPanel extends PluginPanel
     {
         boolean running = plugin.isGameRunning();
         ArenaMode mode = plugin.getArenaMode();
+        boolean isHost = hostAuthorityManager.isHost();
+        boolean hasHost = hostAuthorityManager.hasHost();
 
-        startGame.setEnabled(!running && mode != ArenaMode.NONE && hostAuthorityManager.isHost());
-        rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && hostAuthorityManager.isHost());
-        stopGame.setEnabled(running && hostAuthorityManager.isHost());
+        claimHost.setVisible(!isHost && !hasHost);
+
+        startGame.setEnabled(!running && mode != ArenaMode.NONE && isHost);
+        rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && isHost);
+        stopGame.setEnabled(running && isHost);
 
         if (running)
         {
@@ -205,11 +232,7 @@ public class InfectedPanel extends PluginPanel
             gameStatusLabel.setForeground(Color.GRAY);
         }
 
-        hostLabel.setText(
-                hostAuthorityManager.isHost()
-                        ? "Role: HOST 👑"
-                        : "Role: PLAYER"
-        );
+        hostLabel.setText(isHost ? "Role: HOST 👑" : "Role: PLAYER");
 
         int seconds = plugin.getRemainingSeconds();
         timerLabel.setText(
