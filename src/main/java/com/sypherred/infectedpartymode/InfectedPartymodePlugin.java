@@ -153,16 +153,15 @@ public class InfectedPartymodePlugin extends Plugin
 	@Subscribe
 	public void onGameStartedFromParty(GameStartedFromParty e)
 	{
-		if (gameState == GameState.RUNNING)
-		{
-			return;
-		}
-
+		// IMMER übernehmen – auch wenn wir glauben, schon zu laufen
 		GameSession session = partySyncManager.getGameSession();
+
 		gameState = GameState.RUNNING;
 
 		int remaining = (int) (session.getRemainingMillis() / 1000L);
 		gameTimer.start(Math.max(remaining, 0));
+
+		areaManager.clearPreview();
 
 		infectedPanel.refreshControls();
 	}
@@ -175,7 +174,6 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		// Stop locally and restore preview
 		gameState = GameState.IDLE;
 		if (gameTimer != null)
 		{
@@ -341,7 +339,6 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		// Commit preview -> active arena
 		areaManager.clearArea();
 		Set<Integer> preview = areaManager.getPreviewRegions();
 
@@ -362,7 +359,6 @@ public class InfectedPartymodePlugin extends Plugin
 
 		int durationSeconds = config.gameDurationMinutes() * 60;
 
-		// IMPORTANT: Host must go RUNNING locally (party messages may not loop back)
 		gameState = GameState.RUNNING;
 		gameTimer.start(durationSeconds);
 
@@ -373,7 +369,6 @@ public class InfectedPartymodePlugin extends Plugin
 			partySyncManager.sendGameStart(durationSeconds);
 		}
 
-		// Initial Infection (host only)
 		if (config.infectionMode() == InfectionMode.RANDOM)
 		{
 			List<PlayerState> candidates = new ArrayList<>(partySyncManager.getPlayerStates().values());
@@ -391,14 +386,6 @@ public class InfectedPartymodePlugin extends Plugin
 
 				pluginMessage(count + " player(s) have been infected.");
 			}
-			else
-			{
-				pluginMessage("No players available to infect yet.");
-			}
-		}
-		else
-		{
-			pluginMessage("Manual infection mode active. No players infected yet.");
 		}
 
 		infectedPanel.refreshControls();
@@ -461,10 +448,6 @@ public class InfectedPartymodePlugin extends Plugin
 		pluginMessage("Arena rerolled.");
 	}
 
-	/* =========================
-	   Tick
-	   ========================= */
-
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
@@ -507,10 +490,6 @@ public class InfectedPartymodePlugin extends Plugin
 	{
 		return hostAuthorityManager.isHost();
 	}
-
-	/* =========================
-	   Chat
-	   ========================= */
 
 	private void pluginMessage(String msg)
 	{

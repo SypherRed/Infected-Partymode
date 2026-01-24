@@ -58,6 +58,7 @@ public class HostAuthorityManager
         Collection<PartyMember> members = partyService.getMembers();
         if (members == null || members.isEmpty())
         {
+            hostMemberId = null;
             return;
         }
 

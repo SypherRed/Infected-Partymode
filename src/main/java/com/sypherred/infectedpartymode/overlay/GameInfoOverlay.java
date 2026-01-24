@@ -1,8 +1,6 @@
 package com.sypherred.infectedpartymode.overlay;
 
 import com.sypherred.infectedpartymode.InfectedPartymodePlugin;
-import com.sypherred.infectedpartymode.party.PartySyncManager;
-import com.sypherred.infectedpartymode.model.GameSession;
 import com.sypherred.infectedpartymode.area.ArenaMode;
 
 import net.runelite.client.ui.overlay.Overlay;
@@ -17,17 +15,12 @@ import java.awt.Graphics2D;
 
 public class GameInfoOverlay extends Overlay
 {
-    private final PartySyncManager partySyncManager;
     private final InfectedPartymodePlugin plugin;
     private final PanelComponent panel = new PanelComponent();
 
     @Inject
-    public GameInfoOverlay(
-            PartySyncManager partySyncManager,
-            InfectedPartymodePlugin plugin
-    )
+    public GameInfoOverlay(InfectedPartymodePlugin plugin)
     {
-        this.partySyncManager = partySyncManager;
         this.plugin = plugin;
 
         setLayer(OverlayLayer.ABOVE_SCENE);
@@ -40,8 +33,6 @@ public class GameInfoOverlay extends Overlay
     {
         panel.getChildren().clear();
 
-        GameSession session = partySyncManager.getGameSession();
-
         panel.getChildren().add(
                 LineComponent.builder()
                         .left("Infected Partymode")
@@ -51,7 +42,7 @@ public class GameInfoOverlay extends Overlay
         panel.getChildren().add(
                 LineComponent.builder()
                         .left("State:")
-                        .right(session != null && session.isRunning() ? "RUNNING" : "IDLE")
+                        .right(plugin.isGameRunning() ? "RUNNING" : "IDLE")
                         .build()
         );
 
@@ -77,12 +68,11 @@ public class GameInfoOverlay extends Overlay
                         .build()
         );
 
-        if (session != null && session.isRunning())
+        if (plugin.isGameRunning())
         {
-            long remainingMillis = session.getRemainingMillis();
-            long seconds = remainingMillis / 1000;
-            long minutes = seconds / 60;
-            seconds %= 60;
+            int remaining = plugin.getRemainingSeconds();
+            int minutes = remaining / 60;
+            int seconds = remaining % 60;
 
             panel.getChildren().add(
                     LineComponent.builder()
