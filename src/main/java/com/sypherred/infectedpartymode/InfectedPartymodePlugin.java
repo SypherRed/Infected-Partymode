@@ -20,6 +20,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -104,7 +105,6 @@ public class InfectedPartymodePlugin extends Plugin
 		overlayManager.add(regionDebugWorldMapOverlay);
 		overlayManager.add(outOfBoundsOverlay);
 
-		// initial preview
 		buildPreviewFromConfig();
 
 		BufferedImage icon = null;
@@ -153,7 +153,6 @@ public class InfectedPartymodePlugin extends Plugin
 	@Subscribe
 	public void onGameStartedFromParty(GameStartedFromParty e)
 	{
-		// IMMER übernehmen – auch wenn wir glauben, schon zu laufen
 		GameSession session = partySyncManager.getGameSession();
 
 		gameState = GameState.RUNNING;
@@ -320,8 +319,8 @@ public class InfectedPartymodePlugin extends Plugin
 			return;
 		}
 
-		Player local = client.getLocalPlayer();
-		if (local == null)
+		Player localPlayer = client.getLocalPlayer();
+		if (localPlayer == null)
 		{
 			pluginMessage("Local player not ready yet.");
 			return;
@@ -331,6 +330,18 @@ public class InfectedPartymodePlugin extends Plugin
 		{
 			pluginMessage("Please select an arena mode first.");
 			return;
+		}
+
+		// Party: if no host exists yet, allow local to claim it (explicitly)
+		if (partyService.isInParty() && !hostAuthorityManager.hasHost())
+		{
+			hostAuthorityManager.claimHost();
+
+			PartyMember local = partyService.getLocalMember();
+			if (local != null && hostAuthorityManager.getHostMemberId() != null)
+			{
+				partySyncManager.sendHostClaim(local.getMemberId());
+			}
 		}
 
 		if (!hostAuthorityManager.isHost())
@@ -367,6 +378,10 @@ public class InfectedPartymodePlugin extends Plugin
 			partySyncManager.sendArea();
 			partySyncManager.initializePlayersFromParty();
 			partySyncManager.sendGameStart(durationSeconds);
+		}
+		else
+		{
+			partySyncManager.initializePlayersFromParty();
 		}
 
 		if (config.infectionMode() == InfectionMode.RANDOM)

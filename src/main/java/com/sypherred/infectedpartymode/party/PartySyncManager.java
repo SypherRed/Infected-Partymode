@@ -46,6 +46,10 @@ public class PartySyncManager
         this.eventBus = eventBus;
     }
 
+    /* =========================
+       Party state
+       ========================= */
+
     @Subscribe
     public void onPartyChanged(PartyChanged e)
     {
@@ -53,9 +57,14 @@ public class PartySyncManager
 
         if (!inParty)
         {
+            hostAuthorityManager.reset();
             playerStates.clear();
             gameSession.stop();
             postStatesUpdated();
+        }
+        else
+        {
+            hostAuthorityManager.clearIfHostLeftParty();
         }
     }
 
@@ -72,6 +81,20 @@ public class PartySyncManager
         }
 
         partyService.send(new PartyChatMessage(PREFIX + payload));
+    }
+
+    /* =========================
+       Host sync
+       ========================= */
+
+    public void sendHostClaim(long memberId)
+    {
+        sendPartyString("HOST|" + memberId);
+    }
+
+    private void onHostClaimReceived(long memberId)
+    {
+        hostAuthorityManager.onHostClaim(memberId);
     }
 
     /* =========================
@@ -162,6 +185,7 @@ public class PartySyncManager
 
         long start = System.currentTimeMillis();
         gameSession.start(start, durationSeconds);
+
         sendPartyString("TIMER|" + start + "|" + durationSeconds);
     }
 
@@ -197,6 +221,17 @@ public class PartySyncManager
 
         switch (parts[0])
         {
+            case "HOST":
+                if (parts.length >= 2)
+                {
+                    Long id = tryParseLong(parts[1]);
+                    if (id != null)
+                    {
+                        onHostClaimReceived(id);
+                    }
+                }
+                break;
+
             case "INFECT":
                 if (parts.length >= 3)
                 {
