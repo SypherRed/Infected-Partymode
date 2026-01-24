@@ -5,13 +5,13 @@ import net.runelite.client.party.PartyService;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Collection;
 
 @Singleton
 public class HostAuthorityManager
 {
     private final PartyService partyService;
-
-    private Long hostMemberId = null;
+    private Long hostMemberId;
 
     @Inject
     public HostAuthorityManager(PartyService partyService)
@@ -25,60 +25,45 @@ public class HostAuthorityManager
     }
 
     /**
-     * Host rules:
-     * - Solo: always host
-     * - Party & no host yet: allow local player to start (first-claim wins)
-     * - Party & host set: only host allowed
+     * Deterministic host:
+     * - Solo / not in party -> host
+     * - Party -> member with lowest memberId
      */
     public boolean isHost()
     {
-        // Solo / not in party -> always host (debug-friendly)
         if (partyService == null || !partyService.isInParty())
         {
             return true;
         }
 
-        // No host yet -> allow first starter
-        if (hostMemberId == null)
-        {
-            return true;
-        }
+        ensureHostResolved();
 
-        final PartyMember local = partyService.getLocalMember();
-        if (local == null)
-        {
-            return false;
-        }
-
-        return local.getMemberId() == hostMemberId;
-    }
-
-    public void claimHost()
-    {
-        if (partyService == null || !partyService.isInParty())
-        {
-            return;
-        }
-
-        final PartyMember local = partyService.getLocalMember();
-        if (local == null)
-        {
-            return;
-        }
-
-        hostMemberId = local.getMemberId();
-    }
-
-    public void onHostClaim(long memberId)
-    {
-        if (hostMemberId == null)
-        {
-            hostMemberId = memberId;
-        }
+        PartyMember local = partyService.getLocalMember();
+        return local != null && local.getMemberId() == hostMemberId;
     }
 
     public Long getHostMemberId()
     {
+        ensureHostResolved();
         return hostMemberId;
+    }
+
+    private void ensureHostResolved()
+    {
+        if (hostMemberId != null)
+        {
+            return;
+        }
+
+        Collection<PartyMember> members = partyService.getMembers();
+        if (members == null || members.isEmpty())
+        {
+            return;
+        }
+
+        hostMemberId = members.stream()
+                .map(PartyMember::getMemberId)
+                .min(Long::compareTo)
+                .orElse(null);
     }
 }

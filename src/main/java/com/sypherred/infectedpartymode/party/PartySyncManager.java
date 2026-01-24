@@ -14,18 +14,13 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.party.messages.PartyChatMessage;
 
 import javax.inject.Inject;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class PartySyncManager
 {
-    private static final String PREFIX = "IPM|"; // Infected PartyMode
+    private static final String PREFIX = "IPM|";
 
     private final PartyService partyService;
     private final AreaManager areaManager;
@@ -62,68 +57,25 @@ public class PartySyncManager
 
         if (!inParty)
         {
-            hostAuthorityManager.reset();
             playerStates.clear();
+            gameSession.stop();
             postStatesUpdated();
         }
-
-        log.debug("Party changed: inParty={}", inParty);
     }
 
     /* =========================
-       Initialization
+       Host-only send
        ========================= */
 
-    /**
-     * Initializes all current party members as HEALTHY.
-     * Call once when the game starts (host-side).
-     */
-    public void initializePlayersFromParty()
+    private boolean allowHostSend()
     {
-        if (!inParty)
-        {
-            return;
-        }
-
-        Collection<PartyMember> members = partyService.getMembers();
-        if (members == null || members.isEmpty())
-        {
-            return;
-        }
-
-        boolean changed = false;
-
-        for (PartyMember member : members)
-        {
-            if (member == null)
-            {
-                continue;
-            }
-
-            String name = member.getDisplayName();
-            if (name == null || name.isEmpty())
-            {
-                continue;
-            }
-
-            if (!playerStates.containsKey(name))
-            {
-                playerStates.put(name, new PlayerState(name, InfectionState.HEALTHY));
-                changed = true;
-            }
-        }
-
-        if (changed)
-        {
-            postStatesUpdated();
-        }
+        return !inParty || hostAuthorityManager.isHost();
     }
 
     private void sendPartyString(String payload)
     {
         if (!inParty)
         {
-            log.debug("Not in party -> skip send: {}", payload);
             return;
         }
 
@@ -131,21 +83,64 @@ public class PartySyncManager
     }
 
     /* =========================
-       Infection sync
+       Initialization
+       ========================= */
+
+    public void initializePlayersFromParty()
+    {
+        if (!allowHostSend())
+        {
+            return;
+        }
+
+        Collection<PartyMember> members = partyService.getMembers();
+        if (members == null)
+        {
+            return;
+        }
+
+        for (PartyMember member : members)
+        {
+            if (member == null || member.getDisplayName() == null)
+            {
+                continue;
+            }
+
+            playerStates.putIfAbsent(
+                    member.getDisplayName(),
+                    new PlayerState(member.getDisplayName(), InfectionState.HEALTHY)
+            );
+        }
+
+        postStatesUpdated();
+    }
+
+    /* =========================
+       Infection
        ========================= */
 
     public void sendInfectionState(String playerName, InfectionState state)
     {
+        if (!allowHostSend())
+        {
+            return;
+        }
+
         updateLocalState(playerName, state);
         sendPartyString("INFECT|" + playerName + "|" + state.name());
     }
 
     /* =========================
-       Area (Region) sync
+       Arena
        ========================= */
 
     public void sendArea()
     {
+        if (!allowHostSend())
+        {
+            return;
+        }
+
         Set<Integer> regions = areaManager.getAllowedRegions();
         if (regions.isEmpty())
         {
@@ -160,28 +155,23 @@ public class PartySyncManager
     }
 
     /* =========================
-       Timer / Game start sync
+       Game start / timer
        ========================= */
 
     public void sendGameStart(int durationSeconds)
     {
+        if (!allowHostSend())
+        {
+            return;
+        }
+
         long start = System.currentTimeMillis();
         gameSession.start(start, durationSeconds);
-
         sendPartyString("TIMER|" + start + "|" + durationSeconds);
     }
 
     /* =========================
-       Host sync
-       ========================= */
-
-    public void sendHostClaim(long memberId)
-    {
-        sendPartyString("HOST|" + memberId);
-    }
-
-    /* =========================
-       Receive PartyChatMessage
+       Receive messages
        ========================= */
 
     @Subscribe
@@ -193,8 +183,7 @@ public class PartySyncManager
             return;
         }
 
-        String payload = v.substring(PREFIX.length());
-        String[] parts = payload.split("\\|");
+        String[] parts = v.substring(PREFIX.length()).split("\\|");
         if (parts.length == 0)
         {
             return;
@@ -205,11 +194,10 @@ public class PartySyncManager
             case "INFECT":
                 if (parts.length >= 3)
                 {
-                    String player = parts[1];
                     InfectionState state = safeInfectionState(parts[2]);
                     if (state != null)
                     {
-                        updateLocalState(player, state);
+                        updateLocalState(parts[1], state);
                     }
                 }
                 break;
@@ -218,12 +206,8 @@ public class PartySyncManager
                 if (parts.length >= 2)
                 {
                     Set<Integer> regions = parseRegionSet(parts[1]);
-                    if (!regions.isEmpty())
-                    {
-                        areaManager.clearArea();
-                        areaManager.setActiveRegions(regions);
-                        log.info("Received arena regions from party: {}", regions);
-                    }
+                    areaManager.clearArea();
+                    areaManager.setActiveRegions(regions);
                 }
                 break;
 
@@ -235,18 +219,7 @@ public class PartySyncManager
                     if (start != null && dur != null)
                     {
                         gameSession.start(start, dur);
-                    }
-                }
-                break;
-
-            case "HOST":
-                if (parts.length >= 2)
-                {
-                    Long memberId = tryParseLong(parts[1]);
-                    if (memberId != null)
-                    {
-                        hostAuthorityManager.onHostClaim(memberId);
-                        log.info("Host claimed by memberId={}", memberId);
+                        eventBus.post(GameStartedFromParty.INSTANCE);
                     }
                 }
                 break;
@@ -262,17 +235,22 @@ public class PartySyncManager
 
     private void updateLocalState(String playerName, InfectionState state)
     {
-        playerStates.compute(playerName, (name, existing) ->
+        playerStates.compute(playerName, (k, v) ->
         {
-            if (existing == null)
+            if (v == null)
             {
-                return new PlayerState(name, state);
+                return new PlayerState(playerName, state);
             }
-            existing.setInfectionState(state);
-            return existing;
+            v.setInfectionState(state);
+            return v;
         });
 
         postStatesUpdated();
+    }
+
+    private void postStatesUpdated()
+    {
+        eventBus.post(PlayerStatesUpdated.INSTANCE);
     }
 
     public Map<String, PlayerState> getPlayerStates()
@@ -283,11 +261,6 @@ public class PartySyncManager
     public GameSession getGameSession()
     {
         return gameSession;
-    }
-
-    private void postStatesUpdated()
-    {
-        eventBus.post(PlayerStatesUpdated.INSTANCE);
     }
 
     /* =========================
@@ -310,37 +283,19 @@ public class PartySyncManager
 
     private static Integer tryParseInt(String s)
     {
-        try
-        {
-            return Integer.parseInt(s);
-        }
-        catch (Exception ex)
-        {
-            return null;
-        }
+        try { return Integer.parseInt(s); }
+        catch (Exception e) { return null; }
     }
 
     private static Long tryParseLong(String s)
     {
-        try
-        {
-            return Long.parseLong(s);
-        }
-        catch (Exception ex)
-        {
-            return null;
-        }
+        try { return Long.parseLong(s); }
+        catch (Exception e) { return null; }
     }
 
     private static InfectionState safeInfectionState(String s)
     {
-        try
-        {
-            return InfectionState.valueOf(s);
-        }
-        catch (Exception ex)
-        {
-            return null;
-        }
+        try { return InfectionState.valueOf(s); }
+        catch (Exception e) { return null; }
     }
 }
