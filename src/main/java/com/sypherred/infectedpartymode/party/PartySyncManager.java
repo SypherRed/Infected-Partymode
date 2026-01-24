@@ -46,10 +46,6 @@ public class PartySyncManager
         this.eventBus = eventBus;
     }
 
-    /* =========================
-       Party state
-       ========================= */
-
     @Subscribe
     public void onPartyChanged(PartyChanged e)
     {
@@ -62,10 +58,6 @@ public class PartySyncManager
             postStatesUpdated();
         }
     }
-
-    /* =========================
-       Host-only send
-       ========================= */
 
     private boolean allowHostSend()
     {
@@ -101,15 +93,18 @@ public class PartySyncManager
 
         for (PartyMember member : members)
         {
-            if (member == null || member.getDisplayName() == null)
+            if (member == null)
             {
                 continue;
             }
 
-            playerStates.putIfAbsent(
-                    member.getDisplayName(),
-                    new PlayerState(member.getDisplayName(), InfectionState.HEALTHY)
-            );
+            String name = member.getDisplayName();
+            if (name == null || name.isEmpty())
+            {
+                continue;
+            }
+
+            playerStates.putIfAbsent(name, new PlayerState(name, InfectionState.HEALTHY));
         }
 
         postStatesUpdated();
@@ -155,7 +150,7 @@ public class PartySyncManager
     }
 
     /* =========================
-       Game start / timer
+       Game start / stop
        ========================= */
 
     public void sendGameStart(int durationSeconds)
@@ -170,8 +165,19 @@ public class PartySyncManager
         sendPartyString("TIMER|" + start + "|" + durationSeconds);
     }
 
+    public void sendGameStop()
+    {
+        if (!allowHostSend())
+        {
+            return;
+        }
+
+        gameSession.stop();
+        sendPartyString("STOP");
+    }
+
     /* =========================
-       Receive messages
+       Receive
        ========================= */
 
     @Subscribe
@@ -206,8 +212,11 @@ public class PartySyncManager
                 if (parts.length >= 2)
                 {
                     Set<Integer> regions = parseRegionSet(parts[1]);
-                    areaManager.clearArea();
-                    areaManager.setActiveRegions(regions);
+                    if (!regions.isEmpty())
+                    {
+                        areaManager.clearArea();
+                        areaManager.setActiveRegions(regions);
+                    }
                 }
                 break;
 
@@ -222,6 +231,11 @@ public class PartySyncManager
                         eventBus.post(GameStartedFromParty.INSTANCE);
                     }
                 }
+                break;
+
+            case "STOP":
+                gameSession.stop();
+                eventBus.post(GameStoppedFromParty.INSTANCE);
                 break;
 
             default:
