@@ -19,6 +19,12 @@ public class HostAuthorityManager
      */
     private Long hostMemberId = null;
 
+    /**
+     * Gate to allow accepting a remote host claim.
+     * This is ONLY opened during an explicit local claim action.
+     */
+    private boolean allowRemoteClaim = false;
+
     @Inject
     public HostAuthorityManager(PartyService partyService)
     {
@@ -32,6 +38,7 @@ public class HostAuthorityManager
     public void reset()
     {
         hostMemberId = null;
+        allowRemoteClaim = false;
     }
 
     public boolean hasHost()
@@ -77,6 +84,23 @@ public class HostAuthorityManager
        ========================= */
 
     /**
+     * Call BEFORE sending a HOST claim to the party.
+     * Opens a short-lived window to accept the matching remote claim.
+     */
+    public void beginClaim()
+    {
+        allowRemoteClaim = true;
+    }
+
+    /**
+     * Call AFTER the claim attempt is finished.
+     */
+    public void endClaim()
+    {
+        allowRemoteClaim = false;
+    }
+
+    /**
      * Claim host authority for the local player.
      * Should only be called by explicit user action (UI).
      */
@@ -93,7 +117,7 @@ public class HostAuthorityManager
             return;
         }
 
-        // First claim wins
+        // First explicit claim wins
         if (hostMemberId == null)
         {
             hostMemberId = local.getMemberId();
@@ -102,12 +126,11 @@ public class HostAuthorityManager
 
     /**
      * Accept a host claim from the party.
-     * Used for PARTY sync.
+     * ONLY accepted if a local claim is currently in progress.
      */
     public void onHostClaim(long memberId)
     {
-        // Host already exists → ignore
-        if (hostMemberId != null)
+        if (!allowRemoteClaim || hostMemberId != null)
         {
             return;
         }

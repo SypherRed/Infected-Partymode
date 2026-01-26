@@ -26,6 +26,9 @@ public class InfectedPanel extends PluginPanel
     private final HostAuthorityManager hostAuthorityManager;
     private final EventBus eventBus;
 
+    @Inject
+    private PartyService partyService;
+
     private JButton claimHost;
     private JButton startGame;
     private JButton rerollArena;
@@ -36,15 +39,6 @@ public class InfectedPanel extends PluginPanel
     private JLabel timerLabel;
 
     private final JPanel playerListPanel = new JPanel();
-
-    @Inject
-    private PartyService partyService;
-
-    @Subscribe
-    public void onPartyChanged(PartyChanged e)
-    {
-        refreshControls();
-    }
 
     @Inject
     public InfectedPanel(
@@ -78,6 +72,13 @@ public class InfectedPanel extends PluginPanel
     public void onPlayerStatesUpdated(PlayerStatesUpdated e)
     {
         refreshPlayerList();
+        refreshControls();
+    }
+
+    @Subscribe
+    public void onPartyChanged(PartyChanged e)
+    {
+        refreshControls();
     }
 
     /* =========================
@@ -110,13 +111,17 @@ public class InfectedPanel extends PluginPanel
         claimHost.setAlignmentX(Component.CENTER_ALIGNMENT);
         claimHost.addActionListener(e ->
         {
-            hostAuthorityManager.claimHost();
-
             PartyMember local = partyService.getLocalMember();
-            if (local != null)
+            if (local == null)
             {
-                partySyncManager.sendHostClaim(local.getMemberId());
+                return;
             }
+
+            // Explicit claim gate
+            hostAuthorityManager.beginClaim();
+            hostAuthorityManager.claimHost();
+            partySyncManager.sendHostClaim(local.getMemberId());
+            hostAuthorityManager.endClaim();
 
             refreshControls();
         });
