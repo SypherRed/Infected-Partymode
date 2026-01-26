@@ -45,20 +45,19 @@ public class PartySyncManager
         this.hostAuthorityManager = hostAuthorityManager;
         this.eventBus = eventBus;
 
-        // IMPORTANT: Initial state on plugin startup (PartyChanged may not fire immediately)
+        // IMPORTANT: PartyChanged may not fire immediately
         this.inParty = partyService != null && partyService.isInParty();
-    }
-
-    /** Used by UI */
-    public boolean isInParty()
-    {
-        // Keep it accurate even if PartyChanged didn't fire yet
-        return partyService != null && partyService.isInParty();
     }
 
     /* =========================
        Party state
        ========================= */
+
+    /** Used by UI */
+    public boolean isInParty()
+    {
+        return partyService != null && partyService.isInParty();
+    }
 
     @Subscribe
     public void onPartyChanged(PartyChanged e)
@@ -106,7 +105,16 @@ public class PartySyncManager
 
     private void onHostClaimReceived(long memberId)
     {
+        // 🔒 CRITICAL FIX:
+        // First claim wins – ignore all later host claims
+        if (hostAuthorityManager.hasHost())
+        {
+            log.debug("Ignoring HOST claim from {} – host already set", memberId);
+            return;
+        }
+
         hostAuthorityManager.onHostClaim(memberId);
+        log.info("Host claimed by memberId={}", memberId);
     }
 
     /* =========================
@@ -139,7 +147,10 @@ public class PartySyncManager
                 continue;
             }
 
-            playerStates.putIfAbsent(name, new PlayerState(name, InfectionState.HEALTHY));
+            playerStates.putIfAbsent(
+                    name,
+                    new PlayerState(name, InfectionState.HEALTHY)
+            );
         }
 
         postStatesUpdated();

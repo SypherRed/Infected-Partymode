@@ -104,25 +104,28 @@ public class HostAuthorityManager
      * Claim host authority for the local player.
      * Should only be called by explicit user action (UI).
      */
-    public void claimHost()
+    public boolean claimHost()
     {
         if (partyService == null || !partyService.isInParty())
         {
-            return;
+            return false;
+        }
+
+        if (hostMemberId != null)
+        {
+            return false; // ❗ already claimed
         }
 
         PartyMember local = partyService.getLocalMember();
         if (local == null)
         {
-            return;
+            return false;
         }
 
-        // First explicit claim wins
-        if (hostMemberId == null)
-        {
-            hostMemberId = local.getMemberId();
-        }
+        hostMemberId = local.getMemberId();
+        return true;
     }
+
 
     /**
      * Accept a host claim from the party.

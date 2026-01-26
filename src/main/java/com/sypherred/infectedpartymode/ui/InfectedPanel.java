@@ -220,6 +220,7 @@ public class InfectedPanel extends PluginPanel
         boolean hasHost = hostAuthorityManager.hasHost();
 
         // Claim visible ONLY when we are in a party and no host is set yet
+        claimHost.setEnabled(!hasHost);
         claimHost.setVisible(inPartyNow && !hasHost);
 
         startGame.setEnabled(!running && mode != ArenaMode.NONE && isHost);
