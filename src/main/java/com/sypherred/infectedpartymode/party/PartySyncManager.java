@@ -105,8 +105,6 @@ public class PartySyncManager
 
     private void onHostClaimReceived(long memberId)
     {
-        // 🔒 CRITICAL FIX:
-        // First claim wins – ignore all later host claims
         if (hostAuthorityManager.hasHost())
         {
             log.debug("Ignoring HOST claim from {} – host already set", memberId);

@@ -110,15 +110,14 @@ public class InfectedPanel extends PluginPanel
         claimHost.setAlignmentX(Component.CENTER_ALIGNMENT);
         claimHost.addActionListener(e ->
         {
-            hostAuthorityManager.claimHost();
-
+            // IMPORTANT:
+            // Do NOT claim locally.
+            // Host authority is decided ONLY via party sync.
             PartyMember local = partyService != null ? partyService.getLocalMember() : null;
-            if (local != null && hostAuthorityManager.hasHost())
+            if (local != null)
             {
                 partySyncManager.sendHostClaim(local.getMemberId());
             }
-
-            refreshControls();
         });
 
         startGame = new JButton("▶ Start Game (10 min)");
@@ -219,9 +218,9 @@ public class InfectedPanel extends PluginPanel
         boolean isHost = hostAuthorityManager.isHost();
         boolean hasHost = hostAuthorityManager.hasHost();
 
-        // Claim visible ONLY when we are in a party and no host is set yet
-        claimHost.setEnabled(!hasHost);
+        // Claim ONLY when in party and no host exists yet
         claimHost.setVisible(inPartyNow && !hasHost);
+        claimHost.setEnabled(inPartyNow && !hasHost);
 
         startGame.setEnabled(!running && mode != ArenaMode.NONE && isHost);
         rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && isHost);

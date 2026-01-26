@@ -11,18 +11,7 @@ import java.util.Collection;
 public class HostAuthorityManager
 {
     private final PartyService partyService;
-
-    /**
-     * Single source of truth for host authority.
-     * - null  -> no host claimed yet
-     * - value -> memberId of current host
-     */
     private Long hostMemberId = null;
-
-    /**
-     * Gate to allow accepting a remote host claim.
-     * This is ONLY opened during an explicit local claim action.
-     */
     private boolean allowRemoteClaim = false;
 
     @Inject
@@ -104,28 +93,10 @@ public class HostAuthorityManager
      * Claim host authority for the local player.
      * Should only be called by explicit user action (UI).
      */
-    public boolean claimHost()
+    public void claimHost()
     {
-        if (partyService == null || !partyService.isInParty())
-        {
-            return false;
-        }
-
-        if (hostMemberId != null)
-        {
-            return false; // ❗ already claimed
-        }
-
-        PartyMember local = partyService.getLocalMember();
-        if (local == null)
-        {
-            return false;
-        }
-
-        hostMemberId = local.getMemberId();
-        return true;
+        // Empty implementation; the actual claim is sent via PartyService elsewhere.
     }
-
 
     /**
      * Accept a host claim from the party.
