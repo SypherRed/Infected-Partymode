@@ -101,6 +101,8 @@ public class PartySyncManager
     private void onHostClaimReceived(long memberId)
     {
         hostAuthorityManager.onHostClaim(memberId);
+        eventBus.post(PlayerStatesUpdated.INSTANCE);
+
     }
 
     /* =========================
