@@ -97,6 +97,7 @@ public class InfectedPartymodePlugin extends Plugin
 	protected void startUp()
 	{
 		eventBus.register(outOfBoundsManager);
+		eventBus.register(partySyncManager);
 
 		gameTimer = new GameTimer(executor);
 
@@ -131,6 +132,7 @@ public class InfectedPartymodePlugin extends Plugin
 	protected void shutDown()
 	{
 		eventBus.unregister(outOfBoundsManager);
+		eventBus.unregister(partySyncManager);
 
 		forceStop();
 

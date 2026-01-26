@@ -30,7 +30,7 @@ public class PartySyncManager
     private final GameSession gameSession = new GameSession();
     private final Map<String, PlayerState> playerStates = new HashMap<>();
 
-    private boolean inParty = false;
+    private boolean inParty;
 
     @Inject
     public PartySyncManager(
@@ -44,6 +44,16 @@ public class PartySyncManager
         this.areaManager = areaManager;
         this.hostAuthorityManager = hostAuthorityManager;
         this.eventBus = eventBus;
+
+        // IMPORTANT: Initial state on plugin startup (PartyChanged may not fire immediately)
+        this.inParty = partyService != null && partyService.isInParty();
+    }
+
+    /** Used by UI */
+    public boolean isInParty()
+    {
+        // Keep it accurate even if PartyChanged didn't fire yet
+        return partyService != null && partyService.isInParty();
     }
 
     /* =========================
@@ -66,22 +76,18 @@ public class PartySyncManager
         {
             hostAuthorityManager.clearIfHostLeftParty();
         }
-    }
 
-    /** 🔹 UI / Plugin helper */
-    public boolean isInParty()
-    {
-        return inParty;
+        log.debug("PartyChanged: inParty={}", inParty);
     }
 
     private boolean allowHostSend()
     {
-        return !inParty || hostAuthorityManager.isHost();
+        return !isInParty() || hostAuthorityManager.isHost();
     }
 
     private void sendPartyString(String payload)
     {
-        if (!inParty)
+        if (!isInParty())
         {
             return;
         }
@@ -101,8 +107,6 @@ public class PartySyncManager
     private void onHostClaimReceived(long memberId)
     {
         hostAuthorityManager.onHostClaim(memberId);
-        eventBus.post(PlayerStatesUpdated.INSTANCE);
-
     }
 
     /* =========================

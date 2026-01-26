@@ -25,9 +25,7 @@ public class InfectedPanel extends PluginPanel
     private final PartySyncManager partySyncManager;
     private final HostAuthorityManager hostAuthorityManager;
     private final EventBus eventBus;
-
-    @Inject
-    private PartyService partyService;
+    private final PartyService partyService;
 
     private JButton claimHost;
     private JButton startGame;
@@ -45,13 +43,15 @@ public class InfectedPanel extends PluginPanel
             InfectedPartymodePlugin plugin,
             PartySyncManager partySyncManager,
             HostAuthorityManager hostAuthorityManager,
-            EventBus eventBus
+            EventBus eventBus,
+            PartyService partyService
     )
     {
         this.plugin = plugin;
         this.partySyncManager = partySyncManager;
         this.hostAuthorityManager = hostAuthorityManager;
         this.eventBus = eventBus;
+        this.partyService = partyService;
 
         setLayout(new BorderLayout(0, 8));
 
@@ -72,7 +72,6 @@ public class InfectedPanel extends PluginPanel
     public void onPlayerStatesUpdated(PlayerStatesUpdated e)
     {
         refreshPlayerList();
-        refreshControls();
     }
 
     @Subscribe
@@ -111,17 +110,13 @@ public class InfectedPanel extends PluginPanel
         claimHost.setAlignmentX(Component.CENTER_ALIGNMENT);
         claimHost.addActionListener(e ->
         {
-            PartyMember local = partyService.getLocalMember();
-            if (local == null)
-            {
-                return;
-            }
-
-            // Explicit claim gate
-            hostAuthorityManager.beginClaim();
             hostAuthorityManager.claimHost();
-            partySyncManager.sendHostClaim(local.getMemberId());
-            hostAuthorityManager.endClaim();
+
+            PartyMember local = partyService != null ? partyService.getLocalMember() : null;
+            if (local != null && hostAuthorityManager.hasHost())
+            {
+                partySyncManager.sendHostClaim(local.getMemberId());
+            }
 
             refreshControls();
         });
@@ -219,13 +214,13 @@ public class InfectedPanel extends PluginPanel
     {
         boolean running = plugin.isGameRunning();
         ArenaMode mode = plugin.getArenaMode();
+
+        boolean inPartyNow = partyService != null && partyService.isInParty();
         boolean isHost = hostAuthorityManager.isHost();
         boolean hasHost = hostAuthorityManager.hasHost();
 
-        claimHost.setVisible(
-                partySyncManager.isInParty()
-                        && !hasHost
-        );
+        // Claim visible ONLY when we are in a party and no host is set yet
+        claimHost.setVisible(inPartyNow && !hasHost);
 
         startGame.setEnabled(!running && mode != ArenaMode.NONE && isHost);
         rerollArena.setEnabled(!running && mode == ArenaMode.RANDOM && isHost);
@@ -255,6 +250,9 @@ public class InfectedPanel extends PluginPanel
                         ? "Time Left: " + formatTime(seconds)
                         : "Time Left: --:--"
         );
+
+        revalidate();
+        repaint();
     }
 
     private String formatTime(int seconds)
